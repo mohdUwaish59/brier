@@ -12,8 +12,8 @@ import html
 import string
 from collections.abc import Sequence
 
-from declib.errors import QuestionError
-from declib.questions import Choice, Noul, Question
+from brier.errors import QuestionError
+from brier.questions import Choice, Noul, Question
 
 SYSTEM = "You answer multiple-choice questions about the text in <state> tags."
 ANSWER_PREFIX = "Answer:"

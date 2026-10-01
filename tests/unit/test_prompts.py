@@ -4,9 +4,9 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from declib import Choice, Noul, Score
-from declib.errors import QuestionError
-from declib.prompts import ANSWER_PREFIX, SYSTEM, escape_state, labels, render, rotate
+from brier import Choice, Noul, Score
+from brier.errors import QuestionError
+from brier.prompts import ANSWER_PREFIX, SYSTEM, escape_state, labels, render, rotate
 
 ROUTE = Choice("Which team?", ["billing", "technical", "sales"], name="route")
 

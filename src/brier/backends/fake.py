@@ -13,8 +13,8 @@ from dataclasses import dataclass, field
 import numpy as np
 import numpy.typing as npt
 
-from declib._math import norm
-from declib.errors import DeclibError, TokenizationError
+from brier._math import norm
+from brier.errors import BrierError, TokenizationError
 
 # No "10": a two-digit level is never a single token, as in real tokenizers.
 _VOCAB = (*string.ascii_uppercase, "Yes", "No", *"123456789", "the", "I", "Sure", ".")
@@ -64,7 +64,7 @@ class FakeBackend:
     def __post_init__(self) -> None:
         values = [*self.position_bias, *self.label_prior.values()]
         if not all(math.isfinite(v) for v in values):
-            raise DeclibError("FakeBackend biases must be finite")
+            raise BrierError("FakeBackend biases must be finite")
 
     def label_token_ids(self, labels: Sequence[str]) -> list[int]:
         """Vocabulary id of each label (strict: known and distinct)."""
@@ -98,7 +98,7 @@ class FakeBackend:
     ) -> npt.NDArray[np.float32]:
         """Hash-seeded Gaussian features, deterministic per (seed, prompt, layer)."""
         if not layers or not all(0 <= b < self.num_layers for b in layers):
-            raise DeclibError(f"layers must be non-empty and in [0, {self.num_layers})")
+            raise BrierError(f"layers must be non-empty and in [0, {self.num_layers})")
         out = np.empty((len(prompts), len(layers), self.hidden_size), dtype=np.float32)
         for i, prompt in enumerate(prompts):
             for j, layer in enumerate(layers):

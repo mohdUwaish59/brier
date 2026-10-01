@@ -1,6 +1,6 @@
 # Evaluation protocol
 
-## Metrics (`declib.metrics`, all pure numpy, tested against hand-computed cases)
+## Metrics (`brier.metrics`, all pure numpy, tested against hand-computed cases)
 
 | Metric | Definition |
 |---|---|
@@ -35,7 +35,7 @@ Add a second model family before claiming generality. Always pin the HF `revisio
 ```json
 {
   "schema_version": 1,
-  "declib_version": "…", "git_commit": "…",
+  "brier_version": "…", "git_commit": "…",
   "model": {"id": "…", "revision": "…", "dtype": "bfloat16"},
   "env": {"python": "…", "torch": "…", "transformers": "…", "device": "…"},
   "task": "banking20", "split_seed": 0, "n_test": 1000,

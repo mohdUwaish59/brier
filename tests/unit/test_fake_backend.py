@@ -5,11 +5,11 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from declib import Choice, Noul, Score
-from declib.backends.base import Backend
-from declib.backends.fake import FakeBackend
-from declib.errors import DeclibError, TokenizationError
-from declib.prompts import labels, render
+from brier import Choice, Noul, Score
+from brier.backends.base import Backend
+from brier.backends.fake import FakeBackend
+from brier.errors import BrierError, TokenizationError
+from brier.prompts import labels, render
 
 ROUTE = Choice("Which team?", ["billing", "technical", "sales"], name="route")
 
@@ -124,15 +124,15 @@ def test_hidden_states_shape_dtype_deterministic() -> None:
 
 @pytest.mark.parametrize("layers", [[-1], [8], []])
 def test_hidden_states_rejects_bad_layers(layers: list[int]) -> None:
-    with pytest.raises(DeclibError):
+    with pytest.raises(BrierError):
         FakeBackend().hidden_states(["p"], layers)
 
 
 @pytest.mark.parametrize("bad", [math.nan, math.inf])
 def test_rejects_non_finite_config(bad: float) -> None:
-    with pytest.raises(DeclibError):
+    with pytest.raises(BrierError):
         FakeBackend(position_bias=(bad,))
-    with pytest.raises(DeclibError):
+    with pytest.raises(BrierError):
         FakeBackend(label_prior={"A": bad})
 
 

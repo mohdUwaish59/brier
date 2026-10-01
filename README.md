@@ -1,4 +1,4 @@
-# declib
+# brier
 
 > Calibrated typed decisions from open LLMs: choice, yes/no and score questions
 > answered with real probabilities, in one forward pass, without generation or fine-tuning.
@@ -8,7 +8,7 @@
 ## Why
 
 Reading an LLM's answer from generated text is slow and needs parsing, and raw
-next-token probabilities are biased by option order and badly calibrated. declib reads the
+next-token probabilities are biased by option order and badly calibrated. brier reads the
 answer distribution directly and corrects it in levels:
 
 | Level | Labels needed | What it fixes |
@@ -21,8 +21,8 @@ answer distribution directly and corrects it in levels:
 ## Quickstart (target API)
 
 ```python
-from declib import Decider, Choice, Noul
-from declib.backends.hf import HFBackend
+from brier import Decider, Choice, Noul
+from brier.backends.hf import HFBackend
 
 d = Decider(HFBackend("Qwen/Qwen3-1.7B"))
 res = d.decide(
@@ -39,7 +39,7 @@ print(res["route"].answer, res["route"].probs)
 ## Install
 
 ```bash
-pip install "declib[hf]"   # after the first release
+pip install "brier[hf]"   # after the first release
 ```
 
 ## Security

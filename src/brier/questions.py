@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
-from declib.errors import QuestionError
+from brier.errors import QuestionError
 
 MAX_OPTIONS = 26
 MAX_OPTION_CHARS = 500

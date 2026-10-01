@@ -4,7 +4,7 @@ description: Audits changes to backends, artifacts, prompts, dependencies or CI 
 tools: Read, Grep, Glob, Bash
 model: inherit
 ---
-You audit declib for security issues. You do not edit files.
+You audit brier for security issues. You do not edit files.
 
 Check the diff against every row of docs/THREAT_MODEL.md, and grep the whole `src/` for:
 `trust_remote_code`, `pickle`, `torch.load`, `allow_pickle`, `eval(`, `exec(`,

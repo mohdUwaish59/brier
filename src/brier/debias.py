@@ -8,11 +8,11 @@ from typing import SupportsFloat
 import numpy as np
 import numpy.typing as npt
 
-from declib._math import FloatArray, norm
-from declib.backends.base import Backend
-from declib.errors import DeclibError, QuestionError
-from declib.questions import Choice, Question
-from declib.readout import raw_logprobs
+from brier._math import FloatArray, norm
+from brier.backends.base import Backend
+from brier.errors import BrierError, QuestionError
+from brier.questions import Choice, Question
+from brier.readout import raw_logprobs
 
 PRIOR_FLOOR = 1e-6
 
@@ -30,7 +30,7 @@ def unrotate(position_logp: npt.ArrayLike, shift: int) -> FloatArray:
 def combine(option_logps: Sequence[npt.ArrayLike]) -> FloatArray:
     """Geometric mean over rotations, renormalised: ``norm(mean_s l^(s))``."""
     if not option_logps:
-        raise DeclibError("combine needs at least one rotation")
+        raise BrierError("combine needs at least one rotation")
     return norm(np.mean(np.stack([np.asarray(a, dtype=np.float64) for a in option_logps]), 0))
 
 
@@ -76,9 +76,9 @@ def fit_prior(logp: npt.ArrayLike) -> FloatArray:
     """
     lp = np.asarray(logp, dtype=np.float64)
     if lp.ndim != 2 or lp.shape[0] == 0:
-        raise DeclibError("fit_prior needs a non-empty (N, K) array")
+        raise BrierError("fit_prior needs a non-empty (N, K) array")
     if np.any(np.isnan(lp) | (lp == np.inf)):
-        raise DeclibError("fit_prior needs log-probabilities without NaN or +inf")
+        raise BrierError("fit_prior needs log-probabilities without NaN or +inf")
     p = np.exp(lp)
     pi: FloatArray = np.maximum(p.mean(axis=0), PRIOR_FLOOR)
     pi /= pi.sum()
@@ -103,11 +103,11 @@ def apply_prior(logp: npt.ArrayLike, prior: npt.ArrayLike, lam: SupportsFloat = 
         float64 corrected log-probabilities.
     """
     if isinstance(lam, bool) or not 0.0 <= float(lam) <= 1.0:  # NaN fails the range too
-        raise DeclibError("lam must be in [0, 1]")
+        raise BrierError("lam must be in [0, 1]")
     lp = np.asarray(logp, dtype=np.float64)
     pi = np.asarray(prior, dtype=np.float64)
     if pi.shape != lp.shape[-1:]:
-        raise DeclibError(f"prior shape {pi.shape} does not match {lp.shape[-1:]}")
+        raise BrierError(f"prior shape {pi.shape} does not match {lp.shape[-1:]}")
     if not np.all(np.isfinite(pi) & (pi > 0)):
-        raise DeclibError("prior must be finite and positive")
+        raise BrierError("prior must be finite and positive")
     return norm(lp - float(lam) * np.log(pi))

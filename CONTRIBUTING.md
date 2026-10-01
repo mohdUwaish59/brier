@@ -3,7 +3,7 @@
 Thanks for helping! Quick start:
 
 ```bash
-git clone https://github.com/<your-user>/declib && cd declib
+git clone https://github.com/mohdUwaish59/brier && cd brier
 uv sync --all-extras
 uv run pre-commit install
 uv run pytest

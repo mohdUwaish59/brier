@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from declib._math import FloatArray, norm
-from declib.backends.base import Backend
-from declib.errors import TokenizationError
-from declib.prompts import labels, render
-from declib.questions import Question, Score
+from brier._math import FloatArray, norm
+from brier.backends.base import Backend
+from brier.errors import TokenizationError
+from brier.prompts import labels, render
+from brier.questions import Question, Score
 
 
 def resolve_labels(backend: Backend, question: Question) -> tuple[bool, list[int]]:

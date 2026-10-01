@@ -29,7 +29,7 @@ jobs:
       - run: uv run ruff format --check .
       - run: uv run ruff check .
       - run: uv run mypy src
-      - run: uv run pytest --cov=declib --cov-report=term-missing
+      - run: uv run pytest --cov=brier --cov-report=term-missing
 
   audit:
     runs-on: ubuntu-latest

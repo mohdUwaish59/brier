@@ -1,6 +1,6 @@
 # Threat model and security rules
 
-declib runs locally, loads third-party model weights, reads user-supplied text and
+brier runs locally, loads third-party model weights, reads user-supplied text and
 loads calibration artifacts that may be shared between people. Those are the attack surfaces.
 
 | # | Threat | Mitigation (required) |

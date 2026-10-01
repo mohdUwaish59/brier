@@ -4,9 +4,9 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from declib import Choice, Noul, Score
-from declib.errors import DeclibError, QuestionError
-from declib.questions import validate_questions
+from brier import Choice, Noul, Score
+from brier.errors import BrierError, QuestionError
+from brier.questions import validate_questions
 
 
 def test_choice_happy_path_stores_options_as_tuple() -> None:
@@ -70,8 +70,8 @@ def test_non_string_text_rejected() -> None:
         Noul(123, name="n")  # type: ignore[arg-type]
 
 
-def test_question_error_is_a_declib_error() -> None:
-    assert issubclass(QuestionError, DeclibError)
+def test_question_error_is_a_brier_error() -> None:
+    assert issubclass(QuestionError, BrierError)
 
 
 def test_questions_are_frozen() -> None:

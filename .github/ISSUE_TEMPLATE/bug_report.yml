@@ -21,6 +21,6 @@ body:
   - type: textarea
     id: env
     attributes:
-      label: Environment (declib, python, torch, transformers versions, device)
+      label: Environment (brier, python, torch, transformers versions, device)
     validations:
       required: true

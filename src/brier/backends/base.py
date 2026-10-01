@@ -1,4 +1,4 @@
-"""The Backend protocol: the only boundary between declib and model code (ADR-0002)."""
+"""The Backend protocol: the only boundary between brier and model code (ADR-0002)."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ import numpy.typing as npt
 class Backend(Protocol):
     """A causal LM that can score label tokens and expose hidden states.
 
-    ``prompts`` are user messages from :func:`declib.prompts.render`; the backend wraps
+    ``prompts`` are user messages from :func:`brier.prompts.render`; the backend wraps
     them in its chat template with ``prompts.SYSTEM`` and ``prompts.ANSWER_PREFIX``.
     """
 

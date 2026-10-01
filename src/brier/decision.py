@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Literal
 
-from declib.errors import DeclibError
+from brier.errors import BrierError
 
 Level = Literal["raw", "L0", "L1", "L2"]
 QuestionType = Literal["choice", "noul", "score"]
@@ -38,7 +38,7 @@ class Decision:
 
     Raises
     ------
-    DeclibError
+    BrierError
         If ``probs`` is empty, non-finite, negative or does not sum to 1 (within 1e-9),
         or if ``type`` or ``level`` is unknown.
     """
@@ -51,15 +51,15 @@ class Decision:
 
     def __post_init__(self) -> None:
         if self.type not in _TYPES:
-            raise DeclibError(f"unknown question type {self.type!r}")
+            raise BrierError(f"unknown question type {self.type!r}")
         if self.level not in _LEVELS:
-            raise DeclibError(f"unknown level {self.level!r}")
+            raise BrierError(f"unknown level {self.level!r}")
         probs = {k: float(v) for k, v in self.probs.items()}
         values = probs.values()
         if not probs or not all(math.isfinite(p) and p >= 0.0 for p in values):
-            raise DeclibError(f"{self.name}: probabilities must be finite and non-negative")
+            raise BrierError(f"{self.name}: probabilities must be finite and non-negative")
         if abs(math.fsum(values) - 1.0) > _SUM_TOL:
-            raise DeclibError(f"{self.name}: probabilities must sum to 1")
+            raise BrierError(f"{self.name}: probabilities must sum to 1")
         object.__setattr__(self, "probs", MappingProxyType(probs))
         object.__setattr__(self, "meta", MappingProxyType(dict(self.meta)))
 
@@ -86,12 +86,12 @@ class Decision:
     def p_yes(self) -> float:
         """Probability of "yes" (Noul only)."""
         if self.type != "noul":
-            raise DeclibError("p_yes is only defined for Noul decisions")
+            raise BrierError("p_yes is only defined for Noul decisions")
         return self.probs["yes"]
 
     @property
     def expected(self) -> float:
         """Expected level (Score only)."""
         if self.type != "score":
-            raise DeclibError("expected is only defined for Score decisions")
+            raise BrierError("expected is only defined for Score decisions")
         return math.fsum(int(k) * p for k, p in self.probs.items())

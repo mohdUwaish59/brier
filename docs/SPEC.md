@@ -1,4 +1,4 @@
-# Specification — declib v0.1
+# Specification — brier v0.1
 
 ## 1. Purpose
 
@@ -24,8 +24,8 @@ level-label strings; duplicate `name` within one call.
 ## 3. Public API (target)
 
 ```python
-from declib import Decider, Choice, Noul, Score
-from declib.backends.hf import HFBackend
+from brier import Decider, Choice, Noul, Score
+from brier.backends.hf import HFBackend
 
 d = Decider(HFBackend("Qwen/Qwen3-1.7B", revision="<commit-sha>"))
 qs = [
@@ -78,5 +78,5 @@ probabilities that are non-finite, negative or do not sum to 1 (±1e-9).
 
 ## 6. Benchmark CLI
 
-`python -m declib.bench run --model <id> --task banking20 --levels raw,L0,L1,L2 --out results/`
+`python -m brier.bench run --model <id> --task banking20 --levels raw,L0,L1,L2 --out results/`
 writes a JSON result file (schema in EVALUATION.md).

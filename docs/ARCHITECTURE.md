@@ -1,9 +1,9 @@
 # Architecture
 
 ```
-src/declib/
+src/brier/
   __init__.py          # public exports + __version__
-  errors.py            # DeclibError and subclasses
+  errors.py            # BrierError and subclasses
   questions.py         # Choice, Noul, Score (frozen dataclasses + validation)
   decision.py          # Decision result type
   prompts.py           # prompt rendering, state delimiting, rotations of option order

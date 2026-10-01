@@ -5,13 +5,13 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from declib import Choice, Noul, Score
-from declib._math import norm
-from declib.backends.fake import FakeBackend
-from declib.debias import apply_prior, combine, fit_prior, l0_logprobs, unrotate
-from declib.errors import DeclibError, QuestionError
-from declib.prompts import render
-from declib.readout import raw_logprobs
+from brier import Choice, Noul, Score
+from brier._math import norm
+from brier.backends.fake import FakeBackend
+from brier.debias import apply_prior, combine, fit_prior, l0_logprobs, unrotate
+from brier.errors import BrierError, QuestionError
+from brier.prompts import render
+from brier.readout import raw_logprobs
 
 ROUTE = Choice("Which team?", ["billing", "technical", "sales", "other"], name="route")
 STATES = [f"customer message {i}" for i in range(200)]
@@ -71,7 +71,7 @@ def test_combine_is_normalised_geometric_mean() -> None:
 
 
 def test_combine_rejects_empty() -> None:
-    with pytest.raises(DeclibError):
+    with pytest.raises(BrierError):
         combine([])
 
 
@@ -156,17 +156,17 @@ def test_apply_prior_lambda_zero_and_uniform_prior_are_identity() -> None:
 
 @pytest.mark.parametrize("lam", [-0.1, 1.1, math.nan, True])
 def test_apply_prior_rejects_lambda_outside_unit_interval(lam: float) -> None:
-    with pytest.raises(DeclibError):
+    with pytest.raises(BrierError):
         apply_prior(np.log(np.array([[0.5, 0.5]])), np.array([0.5, 0.5]), lam=lam)
 
 
 def test_apply_prior_rejects_shape_mismatch_and_bad_prior() -> None:
     logp = np.log(np.array([[0.5, 0.5]]))
-    with pytest.raises(DeclibError):
+    with pytest.raises(BrierError):
         apply_prior(logp, np.array([0.2, 0.3, 0.5]))
-    with pytest.raises(DeclibError):
+    with pytest.raises(BrierError):
         apply_prior(logp, np.array([0.0, 1.0]))
-    with pytest.raises(DeclibError):
+    with pytest.raises(BrierError):
         fit_prior(np.empty((0, 2)))
 
 
@@ -195,7 +195,7 @@ def test_prior_outputs_are_distributions(rows: list[list[float]], lam: float) ->
 
 
 def test_tokenization_error_propagates_for_non_score() -> None:
-    from declib.errors import TokenizationError
+    from brier.errors import TokenizationError
 
     class NoYes(FakeBackend):
         def label_token_ids(self, labels: list[str]) -> list[int]:  # type: ignore[override]
@@ -213,5 +213,5 @@ def test_apply_prior_accepts_numpy_scalar_lambda() -> None:
 
 @pytest.mark.parametrize("bad", [math.nan, math.inf])
 def test_fit_prior_rejects_non_finite(bad: float) -> None:
-    with pytest.raises(DeclibError):
+    with pytest.raises(BrierError):
         fit_prior(np.array([[bad, 0.0]]))

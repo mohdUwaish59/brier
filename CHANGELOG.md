@@ -4,13 +4,15 @@ All notable changes are documented here. Format: [Keep a Changelog](https://keep
 versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+### Changed
+- Renamed the project from the working name `declib` to `brier` (package `brier`, base exception `BrierError`).
 ### Added
 - Repository scaffold, specification, methods, roadmap and CI.
 - Official Apache-2.0 licence text in `LICENSE`.
 - Committed `uv.lock`; refreshed pre-commit hooks; CI audit no longer audits the unpublished project itself.
-- `Choice`, `Noul`, `Score` question types with validation, the `Decision` result type and the `declib.errors` hierarchy.
-- `declib._math`: stable float64 `logsumexp` and `norm` (log-softmax).
-- `declib.prompts`: Choice/Noul/Score templates, HTML-escaped state, option rotation (ADR-0004).
+- `Choice`, `Noul`, `Score` question types with validation, the `Decision` result type and the `brier.errors` hierarchy.
+- `brier._math`: stable float64 `logsumexp` and `norm` (log-softmax).
+- `brier.prompts`: Choice/Noul/Score templates, HTML-escaped state, option rotation (ADR-0004).
 - `Backend` protocol and deterministic `FakeBackend` (content signal + position bias + label prior).
 - `raw` readout (with Score letter fallback) and `L0` debiasing: rotations, geometric-mean combine, batch prior (ADR-0005).
 ### Security

@@ -1,6 +1,6 @@
-# CLAUDE.md — declib
+# CLAUDE.md — brier
 
-`declib` (working name) is an open-source Python library that turns open causal LLMs
+`brier` is an open-source Python library that turns open causal LLMs
 into **calibrated decision models**. The caller gives it a *state* (free text) and
 *typed questions* (Choice / Noul / Score). It returns a probability distribution per
 question, read from next-token logits or hidden states, with no text generation and
@@ -48,11 +48,11 @@ A change is not done until `ruff`, `ruff format --check`, `mypy src` and `pytest
 
 - Python ≥ 3.10, full type hints, `mypy --strict` clean. Public API has NumPy-style docstrings.
 - **The core is numpy-only.** `torch`/`transformers` are imported only inside
-  `declib/backends/hf.py` (lazy import). Nothing else may import them.
+  `brier/backends/hf.py` (lazy import). Nothing else may import them.
 - Calibration and metric maths: pure functions, `float64`, log-space where
   probabilities multiply, `scipy.special`-style stable logsumexp (implement in `_math.py`).
 - No global mutable state. Randomness only through an explicit `numpy.random.Generator` / seed argument.
-- Validate inputs at the public boundary and raise the library's own exceptions (`declib.errors`).
+- Validate inputs at the public boundary and raise the library's own exceptions (`brier.errors`).
   Never `assert` for runtime validation.
 - Every output carries the `level` that produced it (`raw`, `L0`, `L1`, `L2`).
 - Keep functions small; prefer dataclasses (frozen) for value objects.

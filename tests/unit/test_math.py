@@ -6,7 +6,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 from hypothesis.extra.numpy import arrays
 
-from declib._math import log_softmax, logsumexp, norm
+from brier._math import log_softmax, logsumexp, norm
 
 finite = st.floats(min_value=-1e4, max_value=1e4)
 vectors = arrays(np.float64, st.integers(1, 30), elements=finite)

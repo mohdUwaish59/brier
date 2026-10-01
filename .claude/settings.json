@@ -8,7 +8,7 @@
       "Bash(uv run ruff *)",
       "Bash(uv run mypy *)",
       "Bash(uv run pre-commit *)",
-      "Bash(uv run python -m declib.bench *)",
+      "Bash(uv run python -m brier.bench *)",
       "Bash(git status)",
       "Bash(git diff *)",
       "Bash(git log *)",

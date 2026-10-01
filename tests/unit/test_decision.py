@@ -4,8 +4,8 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from declib import Decision
-from declib.errors import DeclibError
+from brier import Decision
+from brier.errors import BrierError
 
 
 def test_choice_decision_answer_and_confidence() -> None:
@@ -37,13 +37,13 @@ def test_ties_resolve_to_first_listed() -> None:
 
 def test_p_yes_only_on_noul() -> None:
     d = Decision("c", "choice", {"a": 1.0, "b": 0.0}, "raw")
-    with pytest.raises(DeclibError):
+    with pytest.raises(BrierError):
         _ = d.p_yes
 
 
 def test_expected_only_on_score() -> None:
     d = Decision("c", "choice", {"a": 1.0, "b": 0.0}, "raw")
-    with pytest.raises(DeclibError):
+    with pytest.raises(BrierError):
         _ = d.expected
 
 
@@ -59,17 +59,17 @@ def test_expected_only_on_score() -> None:
     ids=["sum-not-one", "nan", "inf", "negative", "empty"],
 )
 def test_invalid_probs_rejected(probs: dict[str, float]) -> None:
-    with pytest.raises(DeclibError):
+    with pytest.raises(BrierError):
         Decision("c", "choice", probs, "raw")
 
 
 def test_invalid_level_rejected() -> None:
-    with pytest.raises(DeclibError):
+    with pytest.raises(BrierError):
         Decision("c", "choice", {"a": 1.0}, "L9")  # type: ignore[arg-type]
 
 
 def test_invalid_type_rejected() -> None:
-    with pytest.raises(DeclibError):
+    with pytest.raises(BrierError):
         Decision("c", "multi", {"a": 1.0}, "raw")  # type: ignore[arg-type]
 
 

@@ -3,7 +3,7 @@ requires = ["hatchling>=1.26"]
 build-backend = "hatchling.build"
 
 [project]
-name = "declib"   # working name — rename before first release (check PyPI availability; avoid "Jev")
+name = "brier"
 version = "0.0.0"
 description = "Calibrated typed decisions (choice / yes-no / score) from open LLMs, without generation or fine-tuning."
 readme = "README.md"
@@ -25,12 +25,12 @@ dependencies = ["numpy>=1.24"]
 
 [project.optional-dependencies]
 hf = ["torch>=2.2", "transformers>=4.45", "safetensors>=0.4"]
-bench = ["declib[hf]", "datasets>=2.18"]
+bench = ["brier[hf]", "datasets>=2.18"]
 
 [project.urls]
-Homepage = "https://github.com/<your-user>/declib"
-Issues = "https://github.com/<your-user>/declib/issues"
-Changelog = "https://github.com/<your-user>/declib/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/mohdUwaish59/brier"
+Issues = "https://github.com/mohdUwaish59/brier/issues"
+Changelog = "https://github.com/mohdUwaish59/brier/blob/main/CHANGELOG.md"
 
 [dependency-groups]
 dev = [
@@ -44,10 +44,10 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/declib"]
+packages = ["src/brier"]
 
 [tool.hatch.build.targets.sdist]
-include = ["src/declib", "tests", "README.md", "LICENSE", "NOTICE", "CHANGELOG.md"]
+include = ["src/brier", "tests", "README.md", "LICENSE", "NOTICE", "CHANGELOG.md"]
 
 [tool.ruff]
 line-length = 100
@@ -81,7 +81,7 @@ markers = ["integration: loads a real model (slow, needs download; run with -m i
 filterwarnings = ["error"]
 
 [tool.coverage.run]
-source = ["declib"]
+source = ["brier"]
 branch = true
 omit = ["*/backends/hf.py", "*/bench/*"]
 

@@ -3,7 +3,7 @@
 Status: accepted
 
 ## Decision
-An artifact is a directory with `artifact.json` (schema_version, declib version,
+An artifact is a directory with `artifact.json` (schema_version, brier version,
 model id + revision, prompt template hash, per-question config: prior, temperature,
 head metadata, SHA-256 of arrays file) and `arrays.npz` (numeric arrays only), loaded
 with `allow_pickle=False`. Loading fails with `ArtifactError` on schema, hash, model or
