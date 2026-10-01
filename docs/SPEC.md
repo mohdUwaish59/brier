@@ -50,6 +50,10 @@ silently falls back to a lower level.
 
 `Decision` (frozen dataclass): `name, type, probs, answer, level, confidence`
 (max prob), `meta` (model id, revision, layer for L2, n_forward).
+`probs` is keyed by option string (Choice), `"yes"`/`"no"` (Noul) or `"1"`..`"L"` (Score),
+in question order. `answer` and `confidence` are derived from `probs` (ties go to the
+first-listed answer); Noul adds `p_yes`, Score adds `expected`. Construction rejects
+probabilities that are non-finite, negative or do not sum to 1 (±1e-9).
 
 ## 4. Correction levels
 
