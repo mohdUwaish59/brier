@@ -241,3 +241,46 @@ def test_raw_results_written_before_prior_fit(tmp_path: Path, monkeypatch) -> No
     monkeypatch.setattr(Decider, "fit_prior", spy)
     run_task(BIASED, _task(), ["L0", "raw"], tmp_path, n_resamples=5)
     assert seen == [True, True]  # both prior fits happen after raw was written
+
+
+# ---------- L1 in the runner ----------
+
+
+def _overconfident() -> FakeBackend:
+    def content(state: str, option: str) -> float:
+        h = hashlib.sha256(f"{state}|{option}".encode()).digest()
+        return 12.0 * int.from_bytes(h[:8], "big") / 2.0**64
+
+    return FakeBackend(content=content)
+
+
+def _l1_task() -> Task:
+    counts = {f"intent_{c}": 60 for c in "abcd"}  # 240 items -> 10 pool, 60 calib, 170 test
+    return make_banking20(_rows(counts), top_k=4, n_pool=10, n_cal=60)
+
+
+def test_run_task_l1_fits_on_calibration_split(tmp_path: Path) -> None:
+    s = run_task(_overconfident(), _l1_task(), ["raw", "L0", "L1"], tmp_path, n_resamples=50)
+    cal = s["calibration"]["L1"]
+    assert cal["n_calib"] == 60
+    assert cal["temperature"] > 1.0  # overconfident fake -> softened
+    assert cal["temperature_reversed"] > 0
+    l0, l1 = s["levels"]["L0"], s["levels"]["L1"]
+    assert l1["accuracy"][0] == l0["accuracy"][0]  # temperature never changes the argmax
+    assert l1["nll"][0] < l0["nll"][0]
+    assert {"L1_minus_raw", "L1_minus_L0"} <= set(s["comparisons"])
+    assert s["timing"]["forward_passes_per_decision"]["L1"] == 4
+    with np.load(tmp_path / "banking20_fake_seed0.npz", allow_pickle=False) as z:
+        np.testing.assert_allclose(z["L1_probs"].sum(axis=1), 1.0)
+        assert z["L1_probs_reversed"].shape == z["L0_probs"].shape
+        np.testing.assert_array_equal(z["L1_probs"].argmax(1), z["L0_probs"].argmax(1))
+
+
+def test_run_task_l1_requires_l0(tmp_path: Path) -> None:
+    with pytest.raises(BrierError):
+        run_task(BIASED, _l1_task(), ["raw", "L1"], tmp_path)
+
+
+def test_run_task_l1_needs_fifty_calibration_items(tmp_path: Path) -> None:
+    with pytest.raises(InsufficientDataError):
+        run_task(BIASED, _task(), ["L0", "L1"], tmp_path, n_resamples=5)  # only 8 calib items

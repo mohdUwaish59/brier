@@ -21,6 +21,7 @@ from brier import Decider, __version__
 from brier._math import FloatArray
 from brier.backends.base import Backend
 from brier.bench.tasks import Task
+from brier.calibrate.temperature import apply_temperature, fit_temperature
 from brier.decision import Level
 from brier.errors import BrierError
 from brier.metrics import (
@@ -38,7 +39,8 @@ from brier.metrics import (
 from brier.questions import Choice
 
 SCHEMA_VERSION = 1
-SUPPORTED_LEVELS: tuple[Level, ...] = ("raw", "L0")
+SUPPORTED_LEVELS: tuple[Level, ...] = ("raw", "L0", "L1")
+_LOG_FLOOR = 1e-300  # probabilities that underflowed to 0, so log stays finite
 COVERAGE_ALPHA = 0.05
 _METRICS: dict[str, Metric] = {
     "accuracy": accuracy,
@@ -52,10 +54,12 @@ _METRICS: dict[str, Metric] = {
 
 
 def check_levels(levels: Sequence[str]) -> list[Level]:
-    """Validate requested levels (only ``raw`` and ``L0`` exist until M4/M5)."""
+    """Validate requested levels (``raw``, ``L0``, ``L1``; L1 is a transform of L0)."""
     out = list(levels)
     if not out or len(set(out)) != len(out) or not set(out) <= set(SUPPORTED_LEVELS):
         raise BrierError(f"levels must be distinct values from {SUPPORTED_LEVELS}")
+    if "L1" in out and "L0" not in out:
+        raise BrierError("L1 is fitted on top of L0; request L0 too")
     return [lv for lv in SUPPORTED_LEVELS if lv in out]
 
 
@@ -71,8 +75,10 @@ def run_task(
 ) -> dict[str, Any]:
     """Evaluate ``levels`` on ``task`` and write ``<task>_<model>_seed<seed>.{json,npz}``.
 
-    Levels run in the order raw, L0 and results are rewritten after each one, so a crash
-    keeps the finished levels; the L0 prior is fitted only when L0 starts.
+    Levels run in the order raw, L0, L1 and results are rewritten after each one, so a crash
+    keeps the finished levels; the L0 prior is fitted only when L0 starts. L1 fits a
+    temperature on L0 predictions for the calibration split and applies it to the stored
+    test-set L0 probabilities (what ``Decider`` does), so it only adds the calibration items.
     Flip rate re-runs each level with the option list reversed (doubling its cost).
 
     Parameters
@@ -82,11 +88,11 @@ def run_task(
     task : Task
         See :mod:`brier.bench.tasks`.
     levels : Sequence[str]
-        Subset of ``("raw", "L0")``.
+        Subset of ``("raw", "L0", "L1")``; L1 requires L0.
     out_dir : str or Path
         Output directory (created if needed).
     limit : int or None
-        Use only the first ``limit`` test items and pool states (smoke runs).
+        Use only the first ``limit`` test, pool and calibration items (smoke runs).
     n_resamples : int
         Bootstrap resamples per CI.
     git_commit : str or None
@@ -126,6 +132,7 @@ def run_task(
         "n_test": len(states),
         "n_pool": len(pool),
         "levels": {},
+        "calibration": {},
         "comparisons": {},
         "timing": {"forward_passes_per_decision": {}, "wall_seconds": {}},
     }
@@ -136,21 +143,52 @@ def run_task(
         if level == "L0" and pool:  # L0 wall time includes fitting its prior
             decider.fit_prior(pool, [q])
             decider.fit_prior(pool, [q_rev])  # same name, so a separate call
-        p = _predict(decider, states, q, level)
-        p_rev = _predict(decider, states, q_rev, level, order=q.options)
+        if level == "L1":
+            p, p_rev, summary["calibration"]["L1"] = _l1(decider, task, q, q_rev, arrays, limit)
+        else:
+            p = _predict(decider, states, q, level)
+            p_rev = _predict(decider, states, q_rev, level, order=q.options)
         summary["timing"]["wall_seconds"][level] = round(time.perf_counter() - start, 3)
         summary["timing"]["forward_passes_per_decision"][level] = (
-            len(q.options) if level == "L0" else 1
+            1 if level == "raw" else len(q.options)
         )
         arrays[f"{level}_probs"], arrays[f"{level}_probs_reversed"] = p, p_rev
         summary["levels"][level] = _metrics(p, p_rev, labels, n_resamples)
-        if level != "raw" and "raw" in summary["levels"]:
-            base = (arrays["raw_probs"], arrays["raw_probs_reversed"])
-            summary["comparisons"][f"{level}_minus_raw"] = _paired(
-                (p, p_rev), base, labels, n_resamples
-            )
+        for ref in ("raw", "L0"):
+            if ref != level and ref in summary["levels"] and level in ("L0", "L1"):
+                base = (arrays[f"{ref}_probs"], arrays[f"{ref}_probs_reversed"])
+                summary["comparisons"][f"{level}_minus_{ref}"] = _paired(
+                    (p, p_rev), base, labels, n_resamples
+                )
         _write(Path(out_dir), stem, summary, arrays)
     return summary
+
+
+def _l1(
+    decider: Decider,
+    task: Task,
+    q: Choice,
+    q_rev: Choice,
+    arrays: dict[str, Any],
+    limit: int | None,
+) -> tuple[FloatArray, FloatArray, dict[str, Any]]:
+    """Fit T (per option order) on the calibration split; apply to the test L0 probs."""
+    cal_states = list(task.calib_states[:limit])
+    cal_y = np.asarray(task.calib_labels[:limit], dtype=np.int64)
+    temps = {}
+    for key, question in (("temperature", q), ("temperature_reversed", q_rev)):
+        cal_p = _predict(decider, cal_states, question, "L0", order=q.options)
+        temps[key] = fit_temperature(_log(cal_p), cal_y)
+    p = np.exp(apply_temperature(_log(arrays["L0_probs"]), temps["temperature"]))
+    p_rev = np.exp(
+        apply_temperature(_log(arrays["L0_probs_reversed"]), temps["temperature_reversed"])
+    )
+    return p, p_rev, {**temps, "n_calib": len(cal_states)}
+
+
+def _log(p: FloatArray) -> FloatArray:
+    out: FloatArray = np.log(np.maximum(p, _LOG_FLOOR))
+    return out
 
 
 def _predict(

@@ -19,6 +19,9 @@ descending confidence (stable for ties); coverage at risk uses the same order, s
 may split a group of tied confidences. RPS is normalised by `K − 1` so it lies in `[0, 1]`.
 
 Every metric is reported with a 95 % percentile bootstrap CI (1,000 resamples, seeded).
+Caveat: ECE is biased upward under resampling (duplicated items crowd bins), so for small
+N or small ECE the percentile CI can sit above the point estimate; a bias-corrected (BCa)
+interval would fix this if it matters.
 Comparisons between levels use **paired** bootstrap on the same items.
 
 ## Datasets
@@ -51,7 +54,9 @@ Add a second model family before claiming generality. Always pin the HF `revisio
 ```
 
 Also recorded: `dataset` (url, sha256, licence), `n_pool`, `comparisons` (paired bootstrap of
-each level minus `raw`) and `coverage_at_risk_0.05_in_sample`. `forward_passes_per_decision`
+each level minus `raw`) and `coverage_at_risk_0.05_in_sample`. `calibration.L1` (`temperature`, `temperature_reversed`, `n_calib`: T is fitted on L0
+predictions for the 300-item calibration split and applied to the test-set L0 probabilities),
+`forward_passes_per_decision`
 counts one option order; flip rate re-runs each level with the options reversed.
 
 Per-item predictions are saved next to it as `.npz` (labels, option names, `<level>_probs`,
