@@ -7,17 +7,19 @@ level order) and integer ``labels`` of shape ``(N,)`` with values in ``[0, K)``.
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Literal, NamedTuple
+from typing import Any, Literal, NamedTuple
 
 import numpy as np
 import numpy.typing as npt
 
+from brier._math import FloatArray
 from brier.errors import BrierError
 
 NLL_FLOOR = 1e-12
 _SUM_TOL = 1e-6
 
 Metric = Callable[..., float]
+IntArray = npt.NDArray[np.integer[Any]]
 
 
 class CI(NamedTuple):
@@ -32,7 +34,7 @@ def _is_int(x: object) -> bool:
     return isinstance(x, (int, np.integer)) and not isinstance(x, bool)
 
 
-def _check_probs(probs: npt.ArrayLike) -> np.ndarray:
+def _check_probs(probs: npt.ArrayLike) -> FloatArray:
     p = np.asarray(probs, dtype=np.float64)
     if p.ndim != 2 or p.shape[0] == 0 or p.shape[1] < 2:
         raise BrierError("probs must be a non-empty (N, K) array with K >= 2")
@@ -43,7 +45,7 @@ def _check_probs(probs: npt.ArrayLike) -> np.ndarray:
     return p
 
 
-def _check(probs: npt.ArrayLike, labels: npt.ArrayLike) -> tuple[np.ndarray, np.ndarray]:
+def _check(probs: npt.ArrayLike, labels: npt.ArrayLike) -> tuple[FloatArray, IntArray]:
     p = _check_probs(probs)
     y = np.asarray(labels)
     if y.shape != (p.shape[0],) or not np.issubdtype(y.dtype, np.integer):
@@ -53,7 +55,7 @@ def _check(probs: npt.ArrayLike, labels: npt.ArrayLike) -> tuple[np.ndarray, np.
     return p, y
 
 
-def _correct_and_conf(p: np.ndarray, y: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def _correct_and_conf(p: FloatArray, y: IntArray) -> tuple[FloatArray, FloatArray]:
     return (np.argmax(p, axis=1) == y).astype(np.float64), p.max(axis=1)
 
 
@@ -121,12 +123,12 @@ def flip_rate(probs: npt.ArrayLike, probs_reversed: npt.ArrayLike) -> float:
     return float(np.mean(np.argmax(a, axis=1) != np.argmax(b, axis=1)))
 
 
-def _selective_risk(p: np.ndarray, y: np.ndarray) -> np.ndarray:
+def _selective_risk(p: FloatArray, y: IntArray) -> FloatArray:
     """Risk of the ``k`` most confident items, for ``k = 1..N`` (stable for ties)."""
     correct, conf = _correct_and_conf(p, y)
     order = np.argsort(-conf, kind="stable")
     errors = np.cumsum(1.0 - correct[order])
-    risk: np.ndarray = errors / np.arange(1, len(y) + 1)
+    risk: FloatArray = errors / np.arange(1, len(y) + 1)
     return risk
 
 
@@ -168,14 +170,14 @@ def rps(probs: npt.ArrayLike, labels: npt.ArrayLike) -> float:
     return float(np.mean(np.sum((cdf - cdf_y) ** 2, axis=1) / (k - 1)))
 
 
-def _resample_indices(n: int, n_resamples: int, seed: int, level: float) -> np.ndarray:
+def _resample_indices(n: int, n_resamples: int, seed: int, level: float) -> IntArray:
     if not _is_int(n_resamples) or n_resamples < 1:
         raise BrierError("n_resamples must be a positive int")
     if not _is_int(seed):
         raise BrierError("seed must be an int (bootstrap CIs are always seeded)")
     if not 0.0 < level < 1.0:
         raise BrierError("level must be in (0, 1)")
-    idx: np.ndarray = np.random.default_rng(seed).integers(0, n, size=(n_resamples, n))
+    idx: IntArray = np.random.default_rng(seed).integers(0, n, size=(n_resamples, n))
     return idx
 
 
