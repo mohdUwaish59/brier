@@ -15,7 +15,7 @@ Tick `[x]` when the acceptance criteria are met and all gates pass.
 - [x] **M1.2** `_math.py`: `logsumexp`, `log_softmax`, `norm`. Property tests: output sums to 1, stable for inputs of ±1e4.
 - [x] **M1.3** `prompts.py`: render prompt, escape `<state>` delimiters inside state text, rotate options. Snapshot tests of the rendered prompt.
 - [x] **M1.4** `backends/base.py` Protocol + `backends/fake.py` (deterministic logits with a configurable position bias and label prior, for tests).
-- [ ] **M1.5** `readout.py` (raw) and `debias.py` (rotations, combine, prior) exactly per METHODS.md.
+- [x] **M1.5** `readout.py` (raw) and `debias.py` (rotations, combine, prior) exactly per METHODS.md.
   *Accept:* hypothesis tests for equivariance; with FakeBackend's position bias, L0 flip rate < raw flip rate.
 
 ## M2 — Hugging Face backend
@@ -25,7 +25,7 @@ Tick `[x]` when the acceptance criteria are met and all gates pass.
 - [ ] **M2.4** Integration tests on a small model (`@pytest.mark.integration`): batched equals unbatched (|Δ| < 1e-4 in fp32), padding side doesn't change results.
 
 ## M3 — Decider (raw + L0) and metrics → **release 0.1.0a1**
-- [ ] **M3.1** `decider.py` with `decide`, `decide_batch`, `fit_prior`; input limits per SPEC §5. Apply the token limit to the rendered (escaped) prompt, not the raw state: escaping can grow it up to 5×.
+- [ ] **M3.1** `decider.py` with `decide`, `decide_batch`, `fit_prior`; input limits per SPEC §5. Apply the token limit to the rendered (escaped) prompt, not the raw state: escaping can grow it up to 5×. Per ADR-0005: L0 applies the prior only if fitted, records that in `meta`, and keeps Score's prior off by default.
 - [ ] **M3.2** `metrics.py` + bootstrap CIs, each metric checked against hand-computed examples.
 - [ ] **M3.3** `bench/` task `banking20`, runner, result JSON + per-item `.npz`.
 - [ ] **M3.4** First benchmark on Qwen3-1.7B: raw vs L0 table in `docs/results.md`.

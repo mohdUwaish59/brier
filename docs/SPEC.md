@@ -48,6 +48,7 @@ res["route"].answer, res["route"].probs, res["route"].level  # "billing", {...},
 
 Requesting a level that has not been fitted raises `NotFittedError`. It never
 silently falls back to a lower level.
+Exception: `L0` without `fit_prior` is rotation-only and does not raise (ADR-0005).
 
 `Decision` (frozen dataclass): `name, type, probs, answer, level, confidence`
 (max prob), `meta` (model id, revision, layer for L2, n_forward).

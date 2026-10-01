@@ -12,5 +12,6 @@ versioning: [Semantic Versioning](https://semver.org/).
 - `declib._math`: stable float64 `logsumexp` and `norm` (log-softmax).
 - `declib.prompts`: Choice/Noul/Score templates, HTML-escaped state, option rotation (ADR-0004).
 - `Backend` protocol and deterministic `FakeBackend` (content signal + position bias + label prior).
+- `raw` readout (with Score letter fallback) and `L0` debiasing: rotations, geometric-mean combine, batch prior (ADR-0005).
 ### Security
 - GitHub Actions and pre-commit hooks pinned to full commit SHAs.
