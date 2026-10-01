@@ -25,6 +25,7 @@ versioning: [Semantic Versioning](https://semver.org/).
 - L1 benchmark (`docs/results.md`, Qwen3-1.7B on banking20): temperature T = 4.51 cuts ECE from 0.299 (L0) to 0.094 and NLL from 3.84 to 1.20, answers unchanged.
 - Colab notebook `notebooks/m4_l1_banking20_benchmark.ipynb` (raw, L0, L1 on banking20, M4 acceptance check).
 - Benchmark: level `L1` (`--levels raw,L0,L1`), temperature fitted on the calibration split; `calibration` and `L1_minus_L0` in the result JSON.
+- `brier.artifacts`: calibration artifacts (`artifact.json` + `arrays.npz`, ADR-0003) with strict, untrusted-input loading: SHA-256, size caps incl. zip-bomb check, `allow_pickle=False`, model/revision/template-hash match; `prompts.template_hash()`.
 - `Decider.fit_temperature(states, question, labels)` and `level="L1"`; `Decision.meta["temperature"]` records the fitted T.
 - `brier.calibrate.temperature`: L1 temperature scaling — `apply_temperature` and `fit_temperature` (golden-section search on log T in [−3, 3], endpoints checked, ≥ 50 labelled items).
 - First benchmark (`docs/results.md`, Qwen3-1.7B on banking20): L0 cuts flip rate from 36.4 % to 20.1 % and improves accuracy, NLL, Brier, ECE and AURC with paired CIs excluding zero.
