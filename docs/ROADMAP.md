@@ -23,6 +23,12 @@ Tick `[x]` when the acceptance criteria are met and all gates pass.
 - [x] **M2.2** `label_token_ids` with strict single-token check (raises `TokenizationError`).
 - [x] **M2.3** `hidden_states` for chosen layers, stopping the forward pass after the deepest requested layer.
 - [x] **M2.4** Integration tests on a small model (`@pytest.mark.integration`): batched equals unbatched (|Δ| < 1e-4 in fp32), padding side doesn't change results.
+- [x] **M2.5** Model compatibility: run the integration suite on several model families
+  (Qwen3, SmolLM2, TinyLlama/Llama-2 template, OLMo-2, Gemma 3 if accessible; Llama 3.2 when
+  the human grants access). Fix what breaks in `HFBackend` (chat templates, label tokenisation,
+  pad tokens, thinking modes). Document a compatibility table and how base models (no chat
+  template) are handled.
+  *Accept:* integration tests pass on ≥ 3 families with pinned revisions; table in `docs/COMPATIBILITY.md`.
 
 ## M3 — Decider (raw + L0) and metrics → **release 0.1.0a1**
 - [x] **M3.1** `decider.py` with `decide`, `decide_batch`, `fit_prior`; input limits per SPEC §5. Apply the token limit to the rendered (escaped) prompt, not the raw state: escaping can grow it up to 5×. `HFBackend` already enforces a hard `max_prompt_tokens` cap; an exact per-state token limit needs a Backend token-count method (ADR first). Per ADR-0005: L0 applies the prior only if fitted, records that in `meta`, and keeps Score's prior off by default.
