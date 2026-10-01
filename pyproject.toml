@@ -25,7 +25,7 @@ dependencies = ["numpy>=1.24"]
 
 [project.optional-dependencies]
 hf = ["torch>=2.2", "transformers>=5.0", "safetensors>=0.4"]
-bench = ["brier[hf]", "datasets>=2.18"]
+bench = ["brier[hf]"]
 
 [project.urls]
 Homepage = "https://github.com/mohdUwaish59/brier"
@@ -70,7 +70,7 @@ warn_unreachable = true
 files = ["src"]
 
 [[tool.mypy.overrides]]
-module = ["torch.*", "transformers.*", "datasets.*", "safetensors.*"]
+module = ["torch.*", "transformers.*", "safetensors.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

@@ -27,7 +27,7 @@ Tick `[x]` when the acceptance criteria are met and all gates pass.
 ## M3 — Decider (raw + L0) and metrics → **release 0.1.0a1**
 - [x] **M3.1** `decider.py` with `decide`, `decide_batch`, `fit_prior`; input limits per SPEC §5. Apply the token limit to the rendered (escaped) prompt, not the raw state: escaping can grow it up to 5×. `HFBackend` already enforces a hard `max_prompt_tokens` cap; an exact per-state token limit needs a Backend token-count method (ADR first). Per ADR-0005: L0 applies the prior only if fitted, records that in `meta`, and keeps Score's prior off by default.
 - [x] **M3.2** `metrics.py` + bootstrap CIs, each metric checked against hand-computed examples.
-- [ ] **M3.3** `bench/` task `banking20`, runner, result JSON + per-item `.npz`.
+- [x] **M3.3** `bench/` task `banking20`, runner, result JSON + per-item `.npz`.
 - [ ] **M3.4** First benchmark on Qwen3-1.7B: raw vs L0 table in `docs/results.md`.
   *Accept:* L0 flip rate lower than raw with non-overlapping CIs.
 
