@@ -19,6 +19,9 @@ descending confidence (stable for ties); coverage at risk uses the same order, s
 may split a group of tied confidences. RPS is normalised by `K − 1` so it lies in `[0, 1]`.
 
 Every metric is reported with a 95 % percentile bootstrap CI (1,000 resamples, seeded).
+Caveat: ECE is biased upward under resampling (duplicated items crowd bins), so for small
+N or small ECE the percentile CI can sit above the point estimate; a bias-corrected (BCa)
+interval would fix this if it matters.
 Comparisons between levels use **paired** bootstrap on the same items.
 
 ## Datasets
