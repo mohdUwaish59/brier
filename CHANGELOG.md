@@ -6,6 +6,8 @@ versioning: [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 ### Changed
 - Renamed the project from the working name `declib` to `brier` (package `brier`, base exception `BrierError`).
+### Fixed
+- mypy no longer pins `python_version = "3.10"`, which failed on Python 3.12+ where numpy 2.5 stubs use `type` statements.
 ### Added
 - Repository scaffold, specification, methods, roadmap and CI.
 - Official Apache-2.0 licence text in `LICENSE`.
