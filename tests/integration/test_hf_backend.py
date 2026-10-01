@@ -159,3 +159,24 @@ def test_oversized_prompt_raises_instead_of_truncating(backend) -> None:  # type
 def test_empty_inputs_have_correct_shapes(backend) -> None:  # type: ignore[no-untyped-def]
     assert backend.label_logprobs([], [1, 2, 3]).shape == (0, 3)
     assert backend.hidden_states([], [1, 2]).shape == (0, 2, backend.model.config.hidden_size)
+
+
+# ---------- M3.1 Decider end to end ----------
+
+
+def test_decider_quickstart(backend) -> None:  # type: ignore[no-untyped-def]
+    from brier import Decider
+
+    d = Decider(backend)
+    route = Choice(
+        "Which team should handle this?", ["billing", "technical", "sales"], name="route"
+    )
+    res = d.decide(
+        "My card was charged twice, please fix it now!",
+        [route, Noul("Is this a refund request?", name="refund")],
+        level="L0",
+    )
+    assert res["route"].answer == "billing"
+    assert res["route"].level == "L0"
+    assert res["route"].meta["n_forward"] == 3
+    assert res["route"].meta["revision"] == REVISION
