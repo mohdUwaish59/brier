@@ -25,7 +25,7 @@ Comparisons between levels use **paired** bootstrap on the same items.
 
 | Task id | Source | Setup |
 |---|---|---|
-| `banking20` | BANKING77 (`PolyAI/banking77` on HF) | 20 most frequent intents from the train split. Fixed seeded splits: 500 unlabelled prior pool, 300 labelled calibration/train, ≥ 1,000 test. Intents shown as their label names with `_` → space |
+| `banking20` | BANKING77 train CSV (CC-BY-4.0) from a pinned commit of `PolyAI-LDN/task-specific-datasets`, SHA-256 verified (the HF copy only ships a loading script) | 20 most frequent intents from the train split. Fixed seeded splits: 500 unlabelled prior pool, 300 labelled calibration/train, ≥ 1,000 test. Intents shown as their label names with `_` → space |
 | `banking20-noul` | same | Noul per item: "Is this about {intent}?" balanced yes/no |
 | later | CLINC150, a Score task | added in later milestones |
 
@@ -50,7 +50,12 @@ Add a second model family before claiming generality. Always pin the HF `revisio
 }
 ```
 
-Per-item predictions are saved next to it as `.npz` so metrics can be recomputed on CPU.
+Also recorded: `dataset` (url, sha256, licence), `n_pool`, `comparisons` (paired bootstrap of
+each level minus `raw`) and `coverage_at_risk_0.05_in_sample`. `forward_passes_per_decision`
+counts one option order; flip rate re-runs each level with the options reversed.
+
+Per-item predictions are saved next to it as `.npz` (labels, option names, `<level>_probs`,
+`<level>_probs_reversed`; no state text) so metrics can be recomputed on CPU.
 
 ## Sanity reference
 

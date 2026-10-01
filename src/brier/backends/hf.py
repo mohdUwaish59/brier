@@ -80,6 +80,7 @@ class HFBackend:
         self.revision = revision
         self.batch_size = batch_size
         self.device = device
+        self.dtype = dtype
         self._torch: Any = torch
         self.tokenizer: Any = transformers.AutoTokenizer.from_pretrained(
             model_id, revision=revision, trust_remote_code=False
