@@ -44,7 +44,11 @@ res["route"].answer, res["route"].probs, res["route"].level  # "billing", {...},
 - `Decider.fit_prior(states, questions)`: label-free prior estimate for L0 (unlabelled states).
   Priors are keyed by the whole question (text, options/levels, name), so a changed
   question never reuses a stale prior; Score is skipped unless `Decider(score_prior=True)`.
-- `Decider.fit_temperature(states, questions, labels)`: L1
+- `Decider.fit_temperature(states, question, labels)`: L1, one question per call, ≥ 50 states.
+  Labels are typed like `Decision.answer`: option string (Choice), `bool` (Noul), int level
+  `1..L` (Score). `T` is fitted on top of L0 (with its prior, if fitted) and keyed by the whole
+  question; refitting that question's prior discards its temperature. `level="L1"` raises
+  `NotFittedError` for any question without a temperature.
 - `Decider.fit_head(states, question, labels, layers=None)`: L2
 - `Decider.save(path)` / `Decider.load(path, backend)`: calibration artifacts, never weights
 

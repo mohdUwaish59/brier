@@ -227,3 +227,21 @@ def test_rejects_unknown_attn_implementation() -> None:
 
     with pytest.raises(BrierError):
         HFBackend(MODELS["qwen3"].id, revision=MODELS["qwen3"].revision, attn_implementation="x")
+
+
+# ---------- M4.1b L1 end to end ----------
+
+
+def test_decider_l1_fit_and_decide(backend) -> None:  # type: ignore[no-untyped-def]
+    from brier import Decider
+
+    q = Noul("Is the customer asking for a refund?", name="refund")
+    states = [f"Please refund order {i}." if i % 2 else f"Where is parcel {i}?" for i in range(50)]
+    labels = [bool(i % 2) for i in range(50)]
+    d = Decider(backend)
+    d.fit_temperature(states, q, labels)
+    l0 = d.decide("I want my money back.", [q], "L0")["refund"]
+    l1 = d.decide("I want my money back.", [q], "L1")["refund"]
+    assert l1.level == "L1"
+    assert l1.meta["temperature"] > 0
+    assert l1.answer == l0.answer
