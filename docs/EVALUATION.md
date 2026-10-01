@@ -12,6 +12,12 @@
 | Risk–coverage | sort by confidence; AURC; coverage at risk ≤ α. **Label it "in-sample"** when the threshold is chosen on the same items |
 | Score questions | MAE of expected level, ranked probability score (RPS) |
 
+Conventions (as implemented): labels are option/level indices `0..K-1`. Equal-mass ECE bins
+split items sorted by confidence (stable for ties); equal-width bins are `(m/n, (m+1)/n]`;
+empty bins are skipped. AURC is the mean selective risk over coverages `k/N`, items sorted by
+descending confidence (stable for ties); coverage at risk uses the same order, so a cut
+may split a group of tied confidences. RPS is normalised by `K − 1` so it lies in `[0, 1]`.
+
 Every metric is reported with a 95 % percentile bootstrap CI (1,000 resamples, seeded).
 Comparisons between levels use **paired** bootstrap on the same items.
 
