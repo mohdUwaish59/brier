@@ -38,7 +38,7 @@ Tick `[x]` when the acceptance criteria are met and all gates pass.
   *Accept:* L0 flip rate lower than raw with non-overlapping CIs.
 
 ## M4 — L1 and artifacts
-- [ ] **M4.1** `calibrate/temperature.py` (bounded search, no scipy). Test: recovers a known T on synthetic data.
+- [x] **M4.1** `calibrate/temperature.py` (bounded search, no scipy). Test: recovers a known T on synthetic data.
 - [ ] **M4.2** `artifacts.py`: JSON + `.npz` (allow_pickle=False), schema version, template hash, model id + revision, SHA-256 of the npz in the JSON; refuse to load on mismatch.
 - [ ] **M4.3** `Decider.save/load`; round-trip test gives identical decisions.
   *Accept:* L1 ECE lower than L0 on banking20 (paired CI).
