@@ -38,7 +38,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: astral-sh/setup-uv@v6
-      - run: uv export --locked --all-extras --no-hashes --format requirements-txt > /tmp/req.txt
+      - run: uv export --locked --all-extras --no-emit-project --no-hashes --format requirements-txt > /tmp/req.txt
       - run: uvx pip-audit -r /tmp/req.txt --strict
 
   build:

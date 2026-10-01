@@ -27,8 +27,10 @@ from declib.backends.hf import HFBackend
 d = Decider(HFBackend("Qwen/Qwen3-1.7B"))
 res = d.decide(
     "My card was charged twice, please fix it now!",
-    [Choice("Which team?", ["billing", "technical", "sales"], name="route"),
-     Noul("Is this a refund request?", name="refund")],
+    [
+        Choice("Which team?", ["billing", "technical", "sales"], name="route"),
+        Noul("Is this a refund request?", name="refund"),
+    ],
     level="L0",
 )
 print(res["route"].answer, res["route"].probs)

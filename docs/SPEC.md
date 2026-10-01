@@ -28,12 +28,14 @@ from declib.backends.hf import HFBackend
 
 d = Decider(HFBackend("Qwen/Qwen3-1.7B", revision="<commit-sha>"))
 qs = [
-    Choice("Which team should handle this?", ["billing", "technical", "sales", "other"], name="route"),
+    Choice(
+        "Which team should handle this?", ["billing", "technical", "sales", "other"], name="route"
+    ),
     Noul("Is the customer asking for a refund?", name="refund"),
     Score("How urgent is this?", levels=5, name="urgency"),
 ]
 res = d.decide("My card was charged twice, fix it now!", qs, level="L0")
-res["route"].answer, res["route"].probs, res["route"].level   # "billing", {...}, "L0"
+res["route"].answer, res["route"].probs, res["route"].level  # "billing", {...}, "L0"
 ```
 
 - `Decider.decide(state, questions, level="L0") -> dict[str, Decision]`
