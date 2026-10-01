@@ -22,6 +22,7 @@ versioning: [Semantic Versioning](https://semver.org/).
 - `Decider` with `decide`, `decide_batch` and `fit_prior` (raw and L0), per-call limits (`max_questions=32`, `max_batch=64`) and provenance in `Decision.meta`.
 - `brier.metrics`: accuracy, NLL, Brier, ECE (equal-mass and equal-width), flip rate, AURC, coverage at risk, MAE and RPS for Score, with seeded percentile and paired bootstrap CIs.
 - Benchmark: `python -m brier.bench run` with task `banking20` (BANKING77, CC-BY-4.0, pinned and SHA-256 verified), raw/L0 with flip rate, bootstrap and paired CIs, result JSON plus per-item `.npz`.
+- L1 benchmark (`docs/results.md`, Qwen3-1.7B on banking20): temperature T = 4.51 cuts ECE from 0.299 (L0) to 0.094 and NLL from 3.84 to 1.20, answers unchanged.
 - Colab notebook `notebooks/m4_l1_banking20_benchmark.ipynb` (raw, L0, L1 on banking20, M4 acceptance check).
 - Benchmark: level `L1` (`--levels raw,L0,L1`), temperature fitted on the calibration split; `calibration` and `L1_minus_L0` in the result JSON.
 - `Decider.fit_temperature(states, question, labels)` and `level="L1"`; `Decision.meta["temperature"]` records the fitted T.
