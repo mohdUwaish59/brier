@@ -11,5 +11,6 @@ versioning: [Semantic Versioning](https://semver.org/).
 - `Choice`, `Noul`, `Score` question types with validation, the `Decision` result type and the `declib.errors` hierarchy.
 - `declib._math`: stable float64 `logsumexp` and `norm` (log-softmax).
 - `declib.prompts`: Choice/Noul/Score templates, HTML-escaped state, option rotation (ADR-0004).
+- `Backend` protocol and deterministic `FakeBackend` (content signal + position bias + label prior).
 ### Security
 - GitHub Actions and pre-commit hooks pinned to full commit SHAs.

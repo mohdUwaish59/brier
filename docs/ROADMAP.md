@@ -14,7 +14,7 @@ Tick `[x]` when the acceptance criteria are met and all gates pass.
 - [x] **M1.1** `errors.py`, `questions.py` (Choice/Noul/Score + validation per SPEC §2), `decision.py`.
 - [x] **M1.2** `_math.py`: `logsumexp`, `log_softmax`, `norm`. Property tests: output sums to 1, stable for inputs of ±1e4.
 - [x] **M1.3** `prompts.py`: render prompt, escape `<state>` delimiters inside state text, rotate options. Snapshot tests of the rendered prompt.
-- [ ] **M1.4** `backends/base.py` Protocol + `backends/fake.py` (deterministic logits with a configurable position bias and label prior, for tests).
+- [x] **M1.4** `backends/base.py` Protocol + `backends/fake.py` (deterministic logits with a configurable position bias and label prior, for tests).
 - [ ] **M1.5** `readout.py` (raw) and `debias.py` (rotations, combine, prior) exactly per METHODS.md.
   *Accept:* hypothesis tests for equivariance; with FakeBackend's position bias, L0 flip rate < raw flip rate.
 
