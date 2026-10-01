@@ -50,7 +50,13 @@ res["route"].answer, res["route"].probs, res["route"].level  # "billing", {...},
   question; refitting that question's prior discards its temperature. `level="L1"` raises
   `NotFittedError` for any question without a temperature.
 - `Decider.fit_head(states, question, labels, layers=None)`: L2
-- `Decider.save(path)` / `Decider.load(path, backend)`: calibration artifacts, never weights
+- `Decider.save(path)` / `Decider.load(path, backend)`: calibration artifacts, never weights.
+  `save` writes every fitted prior and temperature plus `prior_strength` (ADR-0003). `load`
+  validates the artifact as untrusted input and refuses it unless it was fitted on the
+  backend's exact model id and revision with the current prompt templates; decisions after a
+  round trip are identical. `revision=None` matches by name only and does not pin weights, so
+  pass a commit SHA. The SHA-256 checks the arrays file against its JSON; it does not prove
+  who wrote the artifact, so only load artifacts from sources you trust.
 
 Requesting a level that has not been fitted raises `NotFittedError`. It never
 silently falls back to a lower level.

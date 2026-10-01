@@ -3,10 +3,18 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from pathlib import Path
 
 import numpy as np
 
 from brier._math import FloatArray
+from brier.artifacts import (
+    DEFAULT_MAX_BYTES,
+    Artifact,
+    Calibration,
+    load_artifact,
+    save_artifact,
+)
 from brier.backends.base import Backend
 from brier.calibrate.temperature import MIN_ITEMS, apply_temperature, fit_temperature
 from brier.debias import apply_prior, fit_prior, l0_logprobs
@@ -64,6 +72,79 @@ class Decider:
         # Keyed by the whole question (text, options, name), never by name alone.
         self._priors: dict[Question, FloatArray] = {}
         self._temperatures: dict[Question, float] = {}
+
+    def save(self, path: str | Path) -> None:
+        """Save fitted calibration (priors, temperatures, ``prior_strength``), never weights.
+
+        Parameters
+        ----------
+        path : str or Path
+            Directory to create (must be empty if it exists). See ADR-0003.
+
+        Raises
+        ------
+        ArtifactError
+            If ``path`` is a file or a non-empty directory.
+        """
+        questions = list(self._priors) + [q for q in self._temperatures if q not in self._priors]
+        calibrations = tuple(
+            Calibration(q, self._priors.get(q), self._temperatures.get(q)) for q in questions
+        )
+        artifact = Artifact(
+            self.backend.model_id, self.backend.revision, self.prior_strength, calibrations
+        )
+        save_artifact(path, artifact)
+
+    @classmethod
+    def load(
+        cls,
+        path: str | Path,
+        backend: Backend,
+        *,
+        score_prior: bool = False,
+        max_questions: int = 32,
+        max_batch: int = 64,
+        max_bytes: int = DEFAULT_MAX_BYTES,
+    ) -> Decider:
+        """Create a Decider from a saved calibration artifact.
+
+        The artifact must have been fitted on ``backend``'s exact model id and revision and
+        with the current prompt templates; it is validated as untrusted input
+        (THREAT_MODEL T2). ``prior_strength`` comes from the artifact. With
+        ``revision=None`` the match is by model name only and does not pin weights; pin a
+        commit SHA. The checksum guards integrity, not authorship.
+
+        Parameters
+        ----------
+        path : str or Path
+            Artifact directory written by :meth:`save`.
+        backend : Backend
+            Model access; must match the artifact's model.
+        score_prior, max_questions, max_batch : see :class:`Decider`
+        max_bytes : int
+            Size cap for the artifact files (default 100 MB).
+
+        Raises
+        ------
+        ArtifactError
+            If the artifact is invalid or does not match the backend or templates.
+        """
+        artifact = load_artifact(
+            path, model_id=backend.model_id, revision=backend.revision, max_bytes=max_bytes
+        )
+        decider = cls(
+            backend,
+            prior_strength=artifact.prior_strength,
+            score_prior=score_prior,
+            max_questions=max_questions,
+            max_batch=max_batch,
+        )
+        for c in artifact.calibrations:
+            if c.prior is not None:
+                decider._priors[c.question] = c.prior
+            if c.temperature is not None:
+                decider._temperatures[c.question] = c.temperature
+        return decider
 
     def decide(
         self, state: str, questions: Sequence[Question], level: Level = "L0"

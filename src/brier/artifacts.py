@@ -24,8 +24,9 @@ from typing import Any
 
 import numpy as np
 
-from brier import __version__, prompts
+from brier import prompts
 from brier._math import FloatArray
+from brier._version import __version__
 from brier.errors import ArtifactError, QuestionError
 from brier.questions import Choice, Noul, Question, Score
 
