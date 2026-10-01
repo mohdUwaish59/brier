@@ -8,12 +8,13 @@ Changing any template string is a breaking change for stored artifacts (ADR-0004
 
 from __future__ import annotations
 
+import hashlib
 import html
 import string
 from collections.abc import Sequence
 
 from brier.errors import QuestionError
-from brier.questions import Choice, Noul, Question
+from brier.questions import Choice, Noul, Question, Score
 
 SYSTEM = "You answer multiple-choice questions about the text in <state> tags."
 ANSWER_PREFIX = "Answer:"
@@ -109,3 +110,25 @@ def render(state: str, question: Question, shift: int = 0, score_letters: bool =
             lines.append(f"Scale: 1 (lowest) to {question.levels} (highest).")
         lines.append("Answer with the number only.")
     return "\n".join(lines)
+
+
+def template_hash() -> str:
+    """SHA-256 identifying the prompt templates (stored in artifacts, ADR-0003).
+
+    Hashes ``SYSTEM``, ``ANSWER_PREFIX`` and the rendering of a fixed set of probe
+    questions covering every template branch, so any template change changes the hash.
+    """
+    probes: list[tuple[Question, int, bool]] = [
+        (Choice("q", ["a", "b", "c"], name="c"), 0, False),
+        (Choice("q", ["a", "b", "c"], name="c"), 1, False),
+        (Noul("q", name="n"), 0, False),
+        (Score("q", 3, "s"), 0, False),
+        (Score("q", 3, "s"), 0, True),
+        (Score("q", 3, "s", labels=["x", "y", "z"]), 0, False),
+        (Score("q", 3, "s", labels=["x", "y", "z"]), 0, True),
+    ]
+    parts = [SYSTEM, ANSWER_PREFIX]
+    for question, shift, letters in probes:
+        parts.append(render("s & <t>", question, shift=shift, score_letters=letters))
+        parts.append("|".join(labels(question, score_letters=letters)))
+    return hashlib.sha256("\x00".join(parts).encode("utf-8")).hexdigest()
