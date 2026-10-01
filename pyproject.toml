@@ -63,6 +63,7 @@ convention = "numpy"
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "D"]
+"notebooks/**" = ["D", "E501"]  # notebook cells are scripts, not library code
 
 [tool.mypy]
 strict = true
