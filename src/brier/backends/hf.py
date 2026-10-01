@@ -20,6 +20,7 @@ from brier.prompts import ANSWER_PREFIX, SYSTEM
 # Placeholder for the user message when splitting the chat template (private-use chars).
 _SENTINEL = chr(0xE000) + "brier-user" + chr(0xE000)
 _DTYPES = ("float32", "bfloat16", "float16")
+_ATTN = ("eager", "sdpa", "flash_attention_2")
 # A token covers at most this many characters in practice; cheap pre-check before tokenising.
 _MAX_CHARS_PER_TOKEN = 32
 
@@ -46,6 +47,9 @@ class HFBackend:
     max_prompt_tokens : int
         Hard cap on one encoded prompt (default: 8,192-token state plus room for the
         template and question), lowered to the model's context length if smaller.
+    attn_implementation : {"eager", "sdpa", "flash_attention_2"} or None
+        Attention kernel; default is the model's own. Gemma 3 needs ``"eager"`` for
+        batched results to match unbatched within 1e-4 (docs/COMPATIBILITY.md).
 
     Raises
     ------
@@ -63,6 +67,7 @@ class HFBackend:
         dtype: str | None = None,
         batch_size: int = 8,
         max_prompt_tokens: int = 9216,
+        attn_implementation: str | None = None,
     ) -> None:
         try:
             torch: Any = importlib.import_module("torch")
@@ -75,6 +80,9 @@ class HFBackend:
         dtype = dtype or ("bfloat16" if device.startswith("cuda") else "float32")
         if dtype not in _DTYPES:
             raise BrierError(f"dtype must be one of {_DTYPES}")
+        if attn_implementation is not None and attn_implementation not in _ATTN:
+            raise BrierError(f"attn_implementation must be one of {_ATTN} or None")
+        extra = {"attn_implementation": attn_implementation} if attn_implementation else {}
 
         self.model_id = model_id
         self.revision = revision
@@ -91,6 +99,7 @@ class HFBackend:
             trust_remote_code=False,
             use_safetensors=True,
             dtype=getattr(torch, dtype),
+            **extra,
         )
         self.model.to(device).eval()
         self._decoder: Any = self.model.get_decoder()

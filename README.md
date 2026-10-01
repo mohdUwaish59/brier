@@ -36,6 +36,9 @@ res = d.decide(
 print(res["route"].answer, res["route"].probs)
 ```
 
+Works with Hugging Face chat models that ship safetensors weights; tested families are listed
+in [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md).
+
 ## Install
 
 ```bash
