@@ -77,5 +77,9 @@ B. {option}
 Answer with the letter only.
 <assistant> Answer:        # generation prompt; label tokens read at the next position
 ```
+Noul ends with `Answer Yes or No.`; Score lists `1. {label}`… (or a `Scale:` line) and ends
+with `Answer with the number only.` (lettered fallback when digits aren't single tokens).
+`prompts.render` produces the user message; the backend applies the chat template with
+`prompts.SYSTEM` and `prompts.ANSWER_PREFIX` (ADR-0004).
 The exact template string lives in `prompts.py` and is covered by snapshot tests.
 Changing it is a breaking change for stored artifacts (artifacts store a template hash).

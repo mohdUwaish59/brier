@@ -18,7 +18,8 @@ more than 26 options per Choice, multi-label questions, vLLM/SGLang serving.
 | `Score(text, levels, name, labels=None)` | integer levels `1..L`, `2 ≤ L ≤ 10`, optional level descriptions | `probs` over levels, `expected: float`, `answer: int` (mode) |
 
 Validation (raise `QuestionError`): empty text; duplicate or empty options; option
-count outside range; option strings longer than 500 chars; duplicate `name` within one call.
+count outside range; option strings longer than 500 chars; line breaks in option or
+level-label strings; duplicate `name` within one call.
 
 ## 3. Public API (target)
 

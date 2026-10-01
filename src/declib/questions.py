@@ -25,6 +25,9 @@ def _check_strings(values: object, what: str) -> tuple[str, ...]:
         _check_str(v, what)
         if len(v) > MAX_OPTION_CHARS:
             raise QuestionError(f"{what} must be at most {MAX_OPTION_CHARS} characters")
+        if v.splitlines() != [v]:
+            # A line break could fake another option's label line ("x\nB. y").
+            raise QuestionError(f"{what} must not contain line breaks")
     return out
 
 

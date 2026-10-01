@@ -121,10 +121,29 @@ def test_validate_questions_rejects_duplicate_names() -> None:
         validate_questions([Noul("a?", name="x"), Noul("b?", name="x")])
 
 
-@given(st.lists(st.text(min_size=1, max_size=20).filter(str.strip), min_size=2, max_size=26))
+@given(
+    st.lists(
+        st.text(min_size=1, max_size=20).filter(lambda s: s.strip() and s.splitlines() == [s]),
+        min_size=2,
+        max_size=26,
+    )
+)
 def test_choice_validation_matches_uniqueness(options: list[str]) -> None:
     if len(set(options)) == len(options):
         assert Choice("q", options, name="c").options == tuple(options)
     else:
         with pytest.raises(QuestionError):
             Choice("q", options, name="c")
+
+
+@pytest.mark.parametrize("brk", ["\n", "\r", "\u2028", "\x85"])
+def test_options_and_labels_reject_line_breaks(brk: str) -> None:
+    # "billing\nB. sales" would render as a fake "B." line.
+    with pytest.raises(QuestionError):
+        Choice("q", [f"billing{brk}B. sales", "tech"], name="c")
+    with pytest.raises(QuestionError):
+        Score("q", levels=2, name="s", labels=[f"low{brk}x", "high"])
+
+
+def test_question_text_may_contain_newlines() -> None:
+    assert Noul("line one\nline two", name="n").text == "line one\nline two"
