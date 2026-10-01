@@ -42,8 +42,8 @@ Tick `[x]` when the acceptance criteria are met and all gates pass.
 - [x] **M4.1b** `Decider.fit_temperature(states, question, labels)` and `level="L1"` (labels typed like `Decision.answer`; prior refit discards the temperature).
 - [x] **M4.1c** Benchmark runner level `L1`: T fitted on the calibration split, applied to test L0; `L1_minus_L0` paired comparison.
 - [x] **M4.2** `artifacts.py`: JSON + `.npz` (allow_pickle=False), schema version, template hash, model id + revision, SHA-256 of the npz in the JSON; refuse to load on mismatch.
-- [ ] **M4.3** `Decider.save/load`; round-trip test gives identical decisions.
-  *Accept:* L1 ECE lower than L0 on banking20 (paired CI).
+- [x] **M4.3** `Decider.save/load`; round-trip test gives identical decisions.
+  *Accept:* L1 ECE lower than L0 on banking20 (paired CI). **Met:** 0.299 → 0.094, paired diff −0.206 [−0.213, −0.192] (`docs/results.md`).
 
 ## M5 — L2 hidden-state heads → **release 0.1.0**
 - [ ] **M5.1** `heads/ridge.py` (dual + primal), `heads/lda.py` (Ledoit–Wolf + Woodbury). Tests against a naive reference implementation on small random data.

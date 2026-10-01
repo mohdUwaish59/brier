@@ -245,3 +245,23 @@ def test_decider_l1_fit_and_decide(backend) -> None:  # type: ignore[no-untyped-
     assert l1.level == "L1"
     assert l1.meta["temperature"] > 0
     assert l1.answer == l0.answer
+
+
+# ---------- M4.3 save / load ----------
+
+
+def test_decider_save_load_round_trip(backend, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    from brier import Decider
+
+    q = Noul("Is the customer asking for a refund?", name="refund")
+    states = [f"Please refund order {i}." if i % 2 else f"Where is parcel {i}?" for i in range(50)]
+    d = Decider(backend)
+    d.fit_prior(states, [q])
+    d.fit_temperature(states, q, [bool(i % 2) for i in range(50)])
+    d.save(tmp_path / "calib")
+    loaded = Decider.load(tmp_path / "calib", backend)
+    probe = ["I want my money back.", "Track my order please."]
+    for level in ("L0", "L1"):
+        a = [r["refund"].probs for r in d.decide_batch(probe, [q], level)]
+        b = [r["refund"].probs for r in loaded.decide_batch(probe, [q], level)]
+        assert a == b

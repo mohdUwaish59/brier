@@ -39,6 +39,16 @@ print(res["route"].answer, res["route"].probs)
 Works with Hugging Face chat models that ship safetensors weights; tested families are listed
 in [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md).
 
+Calibrate once with your own labels, then reuse the calibration:
+
+```python
+d.fit_prior(unlabelled_states, [route])  # L0 prior (no labels)
+d.fit_temperature(labelled_states, route, route_labels)  # L1, >= 50 labels
+d.save("calibration/")  # JSON + npz, never weights
+d = Decider.load("calibration/", HFBackend("Qwen/Qwen3-1.7B", revision="<commit-sha>"))
+d.decide(state, [route], level="L1")
+```
+
 ## Install
 
 ```bash
