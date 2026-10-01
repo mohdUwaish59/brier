@@ -1,0 +1,26 @@
+name: Bug report
+description: Something produces wrong results or crashes
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "Security issues: do NOT open an issue — see SECURITY.md."
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction (code, model id + revision, level)
+      render: python
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment (declib, python, torch, transformers versions, device)
+    validations:
+      required: true

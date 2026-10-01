@@ -1,0 +1,57 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv sync *)",
+      "Bash(uv lock)",
+      "Bash(uv run pytest)",
+      "Bash(uv run pytest *)",
+      "Bash(uv run ruff *)",
+      "Bash(uv run mypy *)",
+      "Bash(uv run pre-commit *)",
+      "Bash(uv run python -m declib.bench *)",
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git switch *)",
+      "Bash(git checkout -b *)"
+    ],
+    "ask": [
+      "Bash(uv add *)",
+      "Bash(uv remove *)",
+      "Bash(git push *)",
+      "Bash(git merge *)",
+      "Bash(git rebase *)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(~/.ssh/**)",
+      "Read(~/.cache/huggingface/token)",
+      "Read(~/.pypirc)",
+      "Bash(git push --force *)",
+      "Bash(git reset --hard *)",
+      "Bash(rm -rf *)",
+      "Bash(sudo *)",
+      "Bash(curl *)",
+      "Bash(wget *)",
+      "Bash(uv publish *)",
+      "Bash(twine *)",
+      "Bash(pip install *)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=$(jq -r '.tool_input.file_path // empty' 2>/dev/null); case \"$f\" in *.py) uv run ruff format --quiet \"$f\" && uv run ruff check --fix --quiet \"$f\" ;; esac; exit 0"
+          }
+        ]
+      }
+    ]
+  }
+}
