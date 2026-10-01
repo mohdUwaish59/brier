@@ -9,5 +9,6 @@ versioning: [Semantic Versioning](https://semver.org/).
 - Official Apache-2.0 licence text in `LICENSE`.
 - Committed `uv.lock`; refreshed pre-commit hooks; CI audit no longer audits the unpublished project itself.
 - `Choice`, `Noul`, `Score` question types with validation, the `Decision` result type and the `declib.errors` hierarchy.
+- `declib._math`: stable float64 `logsumexp` and `norm` (log-softmax).
 ### Security
 - GitHub Actions and pre-commit hooks pinned to full commit SHAs.
