@@ -226,3 +226,18 @@ def test_no_temp_files_left_behind(tmp_path: Path, monkeypatch) -> None:  # type
     run_task(BIASED, _task(), ["raw"], tmp_path / "out", n_resamples=5)
     leftovers = [p.name for p in tmp_path.rglob("*.tmp")]
     assert leftovers == []
+
+
+def test_raw_results_written_before_prior_fit(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    from brier import Decider
+
+    seen: list[bool] = []
+    real = Decider.fit_prior
+
+    def spy(self, states, questions):  # type: ignore[no-untyped-def]
+        seen.append((tmp_path / "banking20_fake_seed0.json").exists())
+        return real(self, states, questions)
+
+    monkeypatch.setattr(Decider, "fit_prior", spy)
+    run_task(BIASED, _task(), ["L0", "raw"], tmp_path, n_resamples=5)
+    assert seen == [True, True]  # both prior fits happen after raw was written

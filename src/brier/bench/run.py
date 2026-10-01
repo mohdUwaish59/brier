@@ -71,7 +71,8 @@ def run_task(
 ) -> dict[str, Any]:
     """Evaluate ``levels`` on ``task`` and write ``<task>_<model>_seed<seed>.{json,npz}``.
 
-    Results are rewritten after each level, so a crash keeps the finished levels.
+    Levels run in the order raw, L0 and results are rewritten after each one, so a crash
+    keeps the finished levels; the L0 prior is fitted only when L0 starts.
     Flip rate re-runs each level with the option list reversed (doubling its cost).
 
     Parameters
@@ -103,9 +104,6 @@ def run_task(
     labels = np.asarray(task.test_labels[:limit], dtype=np.int64)
     pool = list(task.pool[:limit]) if "L0" in lvls else []
     decider = Decider(backend)
-    if pool:
-        decider.fit_prior(pool, [q])
-        decider.fit_prior(pool, [q_rev])  # same name, so a separate call
 
     summary: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
@@ -133,8 +131,11 @@ def run_task(
     }
     arrays: dict[str, Any] = {"labels": labels, "options": np.array(q.options)}
     stem = f"{task.name}_{_slug(backend.model_id)}_seed{task.seed}"
-    for level in lvls:
+    for level in lvls:  # raw first, so its results are written before the slow prior fit
         start = time.perf_counter()
+        if level == "L0" and pool:  # L0 wall time includes fitting its prior
+            decider.fit_prior(pool, [q])
+            decider.fit_prior(pool, [q_rev])  # same name, so a separate call
         p = _predict(decider, states, q, level)
         p_rev = _predict(decider, states, q_rev, level, order=q.options)
         summary["timing"]["wall_seconds"][level] = round(time.perf_counter() - start, 3)
