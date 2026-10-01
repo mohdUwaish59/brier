@@ -5,7 +5,7 @@ Tick `[x]` when the acceptance criteria are met and all gates pass.
 
 ## M0 — Repository foundation
 - [x] **M0.1** Add the official Apache-2.0 text to `LICENSE` (from apache.org), fill the copyright line in `NOTICE`.
-- [ ] **M0.2** `uv lock` and commit `uv.lock`; `uv run pre-commit autoupdate` and `uv run pre-commit install`. CI green on Python 3.10–3.13.
+- [x] **M0.2** `uv lock` and commit `uv.lock`; `uv run pre-commit autoupdate` and `uv run pre-commit install`. CI green on Python 3.10–3.13.
 - [x] **M0.3** Pin every GitHub Action in `.github/workflows/*` to a full commit SHA (keep the version as a comment).
 - [ ] **M0.4** Enable in GitHub settings (human task): private vulnerability reporting, branch protection on `main` (CI required), Dependabot alerts, PyPI trusted publisher.
   *Accept:* CI passes on a PR; `pre-commit run --all-files` is clean.
