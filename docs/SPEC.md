@@ -41,7 +41,9 @@ res["route"].answer, res["route"].probs, res["route"].level  # "billing", {...},
 
 - `Decider.decide(state, questions, level="L0") -> dict[str, Decision]`
 - `Decider.decide_batch(states, questions, level=...) -> list[dict[str, Decision]]`
-- `Decider.fit_prior(states, questions)`: label-free prior estimate for L0 (unlabelled states)
+- `Decider.fit_prior(states, questions)`: label-free prior estimate for L0 (unlabelled states).
+  Priors are keyed by the whole question (text, options/levels, name), so a changed
+  question never reuses a stale prior; Score is skipped unless `Decider(score_prior=True)`.
 - `Decider.fit_temperature(states, questions, labels)`: L1
 - `Decider.fit_head(states, question, labels, layers=None)`: L2
 - `Decider.save(path)` / `Decider.load(path, backend)`: calibration artifacts, never weights
