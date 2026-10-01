@@ -51,7 +51,9 @@ Add a second model family before claiming generality. Always pin the HF `revisio
 ```
 
 Also recorded: `dataset` (url, sha256, licence), `n_pool`, `comparisons` (paired bootstrap of
-each level minus `raw`) and `coverage_at_risk_0.05_in_sample`. `forward_passes_per_decision`
+each level minus `raw`) and `coverage_at_risk_0.05_in_sample`. `calibration.L1` (`temperature`, `temperature_reversed`, `n_calib`: T is fitted on L0
+predictions for the 300-item calibration split and applied to the test-set L0 probabilities),
+`forward_passes_per_decision`
 counts one option order; flip rate re-runs each level with the options reversed.
 
 Per-item predictions are saved next to it as `.npz` (labels, option names, `<level>_probs`,

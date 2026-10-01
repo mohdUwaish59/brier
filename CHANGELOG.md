@@ -22,6 +22,7 @@ versioning: [Semantic Versioning](https://semver.org/).
 - `Decider` with `decide`, `decide_batch` and `fit_prior` (raw and L0), per-call limits (`max_questions=32`, `max_batch=64`) and provenance in `Decision.meta`.
 - `brier.metrics`: accuracy, NLL, Brier, ECE (equal-mass and equal-width), flip rate, AURC, coverage at risk, MAE and RPS for Score, with seeded percentile and paired bootstrap CIs.
 - Benchmark: `python -m brier.bench run` with task `banking20` (BANKING77, CC-BY-4.0, pinned and SHA-256 verified), raw/L0 with flip rate, bootstrap and paired CIs, result JSON plus per-item `.npz`.
+- Benchmark: level `L1` (`--levels raw,L0,L1`), temperature fitted on the calibration split; `calibration` and `L1_minus_L0` in the result JSON.
 - `brier.calibrate.temperature`: L1 temperature scaling — `apply_temperature` and `fit_temperature` (golden-section search on log T in [−3, 3], endpoints checked, ≥ 50 labelled items).
 - First benchmark (`docs/results.md`, Qwen3-1.7B on banking20): L0 cuts flip rate from 36.4 % to 20.1 % and improves accuracy, NLL, Brier, ECE and AURC with paired CIs excluding zero.
 - Colab notebook `notebooks/m3_4_banking20_benchmark.ipynb` for the M3.4 benchmark (Qwen3-1.7B, pinned brier commit and model revision, timing run, results table, download).
