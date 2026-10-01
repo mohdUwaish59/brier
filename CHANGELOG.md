@@ -17,5 +17,6 @@ versioning: [Semantic Versioning](https://semver.org/).
 - `brier.prompts`: Choice/Noul/Score templates, HTML-escaped state, option rotation (ADR-0004).
 - `Backend` protocol and deterministic `FakeBackend` (content signal + position bias + label prior).
 - `raw` readout (with Score letter fallback) and `L0` debiasing: rotations, geometric-mean combine, batch prior (ADR-0005).
+- `HFBackend` (`brier.backends.hf`): safetensors-only loading with `trust_remote_code=False`, chat template with special-token-safe user content, left-padded batching with explicit position ids, strict label tokens, hidden states via hooks that stop after the deepest layer, and a hard `max_prompt_tokens` cap (default 9,216, at most the model context) raising `InputTooLargeError`. Requires `transformers>=5`.
 ### Security
 - GitHub Actions and pre-commit hooks pinned to full commit SHAs.

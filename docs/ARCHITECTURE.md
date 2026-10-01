@@ -53,6 +53,11 @@ class Backend(Protocol):
         May stop the forward pass after max(layers)."""
 ```
 
+`HFBackend` notes: label tokens are the leading-space variants read right after `"Answer:"`
+(e.g. `" A"`); tokenizers that split `" 1"` into two tokens (Qwen) make Score fall back to
+letters. Left-padded batches pass explicit `position_ids`. User content is tokenised with
+special-token parsing disabled.
+
 Everything after these calls is numpy and runs on CPU. This makes all maths unit-testable
 with `FakeBackend` and lets future backends (vLLM, SGLang) be added without touching the core.
 
