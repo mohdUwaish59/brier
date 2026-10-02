@@ -98,3 +98,25 @@ probabilities that are non-finite, negative or do not sum to 1 (±1e-9).
 
 `python -m brier.bench run --model <id> --task banking20 --levels raw,L0,L1,L2 --out results/`
 writes a JSON result file (schema in EVALUATION.md).
+
+## 7. Conformance check
+
+`brier check <model-id> [--revision SHA] [--dtype ...] [--device ...] [--batch-size N]
+[--attn-implementation ...] [--json]` (also `python -m brier check`) loads the model through
+`HFBackend` and reports, on built-in inputs only:
+
+- `revision`: warns if the revision is not pinned;
+- `labels.choice` / `labels.noul` / `labels.score`: the labels `A`-`Z`, `Yes`/`No` and 10
+  Score levels are single, distinct tokens (Score may use the letter fallback);
+- `batch_consistency`: label probabilities from a batched and a single-prompt pass differ by
+  at most 0.02 (padding or masking bugs move them by more);
+- `hidden_states`: the default L2 candidate layers are reachable and finite;
+- `sanity`: 14 built-in items (Choice, Noul, Score): raw and L0 accuracy, order flips under a
+  reversed option list, ms per prompt. Warns below 60 % L0 accuracy (a weak model), never fails
+  on accuracy alone.
+
+It prints which levels the model supports (`raw`/`L0`/`L1` need the label checks, `L2` needs
+hidden states). Exit code 0 if no check failed (warnings allowed), 1 if the model could not be
+loaded or a check failed. The Python API is `brier.check.check_backend(backend)`. Failure
+details quote the exception text, which can contain local paths or URLs: review a report
+before posting it publicly.

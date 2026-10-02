@@ -13,6 +13,7 @@ versioning: [Semantic Versioning](https://semver.org/).
 - L2 temperature: Platt (1999) targets for two classes; plain-NLL temperature scaling for more, refitted against one-vs-rest Platt targets only when it hits its lower bound (separable OOF scores). Smoothing every fit made 20-class heads badly underconfident (banking20 L2: ECE 0.46 at 81 % accuracy).
 - mypy no longer pins `python_version = "3.10"`, which failed on Python 3.12+ where numpy 2.5 stubs use `type` statements.
 ### Added
+- `brier check <model-id>` (and `brier.check.check_backend`): conformance report for a model before calibrating: label tokens per question type, batched-vs-single consistency, hidden-state access, a 14-item sanity task, and the levels the model supports; `--json`, exit code 1 on failure. The `brier` console script.
 - README quickstart (runs as written), results summary and related-work section; `docs/related_work.md` (sources of the idea and methods, differences from AnyJev); pdoc API reference (dev dependency `pdoc`).
 - Repository scaffold, specification, methods, roadmap and CI.
 - Official Apache-2.0 licence text in `LICENSE`.

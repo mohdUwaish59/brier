@@ -45,13 +45,32 @@ Tick `[x]` when the acceptance criteria are met and all gates pass.
 - [x] **M4.3** `Decider.save/load`; round-trip test gives identical decisions.
   *Accept:* L1 ECE lower than L0 on banking20 (paired CI). **Met:** 0.299 → 0.094, paired diff −0.206 [−0.213, −0.192] (`docs/results.md`).
 
-## M5 — L2 hidden-state heads → **release 0.1.0**
+## M5 — L2 hidden-state heads
 - [x] **M5.1** `heads/ridge.py` (dual + primal), `heads/lda.py` (Ledoit–Wolf + Woodbury). Tests against a naive reference implementation on small random data.
 - [x] **M5.2** `heads/select.py` stratified k-fold OOF selection over layers × α × solver, then temperature.
 - [x] **M5.2b** `Decider.fit_head(states, question, labels, layers=None)` and `level="L2"`; store the selected head (layer, solver, alpha, arrays, T, OOF metrics) in artifacts (schema_version 2, ADR first).
 - [x] **M5.3** Feature caching in the benchmark (compute hidden states once per model/task).
 - [x] **M5.4** Benchmark L2 label curve (100/200/300 labels: L2 needs ≥ 5 per class, i.e. ≥ 100 on banking20's 20 classes) on Qwen3-1.7B and 4B. *Done on Qwen3-1.7B (`docs/results.md`); the 4B run is optional and not yet done.*
-- [ ] **M5.5** Docs: README quickstart, API reference (mkdocs or pdoc), `docs/results.md`. Tag 0.1.0. *Docs done (README, `docs/related_work.md`, pdoc); the 0.1.0 tag is the maintainer's.*
+- [ ] **M5.5** Docs: README quickstart, API reference (mkdocs or pdoc), `docs/results.md`. *Docs done (README, `docs/related_work.md`, pdoc); the 0.1.0 tag moves to the end of M6.*
+
+## M6 — Any LLM: conformance and breadth → **release 0.1.0**
+Goal: a user can point brier at their model and know, before calibrating, whether and how it
+works; the supported-families table is backed by tests and one cross-family run.
+- [x] **M6.1** `brier check <model-id>` (also `python -m brier check`): loads the model and reports
+  label tokens per question type, batched-vs-single consistency, hidden-state access, a small
+  built-in sanity task (raw and L0 accuracy, order flips, ms per prompt) and the levels the
+  model supports. `--json` for machines; exit code 1 if a required check fails.
+  *Accept:* unit tests with `FakeBackend` (passing and failing backends, CLI, JSON); runs on a
+  real model.
+- [ ] **M6.2** Calibration files record the backend dtype; `load` refuses a dtype mismatch
+  (ADR-0006 amendment first).
+- [ ] **M6.3** Wider matrix: Llama 3.2, Phi, Mistral and one MoE in the integration suite /
+  `docs/COMPATIBILITY.md`; a scheduled CI job runs the integration suite on the smallest model
+  with the latest dependency versions; a CI job tests the declared minimum versions; the README
+  quickstart runs as a unit test.
+- [ ] **M6.4** Base models without a chat template: plain-text prompt (ADR first).
+- [ ] **M6.5** Cross-family run: raw / L0 / L1 / L2 on banking20 for about five models
+  (Colab); supported-families table in README and `docs/results.md`. Then tag 0.1.0.
 
 ## Later (each needs an ADR first)
 - Certified abstention: split-conformal sets and Learn-then-Test thresholds.

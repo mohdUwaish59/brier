@@ -1,8 +1,17 @@
 # Model compatibility
 
 `HFBackend` works with any Hugging Face causal LM that has a **chat template** and
-**safetensors** weights (`trust_remote_code` is never enabled). The integration suite runs on
-every family below with pinned revisions:
+**safetensors** weights (`trust_remote_code` is never enabled).
+
+**Check your own model first:**
+
+```bash
+brier check <model-id> --revision <commit-sha>
+```
+
+It reports whether the labels, batching and hidden states work, which levels the model
+supports, and a quick sanity score (SPEC §7). The integration suite runs on every family below
+with pinned revisions:
 
 ```bash
 BRIER_TEST_MODELS=all uv run pytest -m integration      # or e.g. qwen3,gemma3
