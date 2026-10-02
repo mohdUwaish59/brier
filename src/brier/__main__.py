@@ -40,9 +40,21 @@ def _make_backend(args: Any) -> Backend:
     )
 
 
+def _safe_output() -> None:
+    """Escape characters the console cannot encode instead of crashing (e.g. cp1252 on Windows).
+
+    Error details quote tokenizer messages, which may contain characters like ``Ġ``.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(errors="backslashreplace")
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Run the CLI; returns the process exit code (1 if a required check fails)."""
     args = build_parser().parse_args(argv)
+    _safe_output()
     try:
         backend = _make_backend(args)
     except Exception as exc:  # any load failure is the answer to "does it work"

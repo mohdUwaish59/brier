@@ -268,3 +268,37 @@ class _NoLayers(FakeBackend):
 def test_unusable_layer_count_is_reported_not_raised() -> None:
     report = check_backend(_NoLayers(revision="x"))
     assert _status(report, "hidden_states") == "fail"
+
+
+def test_cli_survives_unencodable_error_text(monkeypatch: pytest.MonkeyPatch) -> None:
+    import io
+    import sys
+
+    import brier.__main__ as cli
+
+    raw = io.BytesIO()
+    console = io.TextIOWrapper(raw, encoding="cp1252")  # strict, like a Windows console
+    monkeypatch.setattr(sys, "stdout", console)
+
+    def boom(args: object) -> FakeBackend:
+        raise TokenizationError("label \u0120A is two tokens")
+
+    monkeypatch.setattr(cli, "_make_backend", boom)
+    assert main(["check", "x/y"]) == 1
+    console.flush()
+    assert b"\\u0120A is two tokens" in raw.getvalue()
+
+
+def test_cli_works_when_streams_cannot_be_reconfigured(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import io
+    import sys
+
+    import brier.__main__ as cli
+
+    out = io.StringIO()  # has no reconfigure(), like some embedded consoles
+    monkeypatch.setattr(sys, "stdout", out)
+    monkeypatch.setattr(cli, "_make_backend", lambda args: _knowing_backend())
+    assert main(["check", "some/model"]) == 0
+    assert "Result: OK" in out.getvalue()

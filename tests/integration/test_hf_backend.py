@@ -42,6 +42,36 @@ MODELS = {
     "gemma3": Model(
         "google/gemma-3-1b-it", "dcc83ea841ab6100d6b47a070329e1ba4cf78752", True, "eager"
     ),
+    # M6.3: more families (ungated). Small enough for a CPU laptop:
+    "granitemoe": Model(  # mixture of experts
+        "ibm-granite/granite-3.1-1b-a400m-instruct",
+        "0da7a48b0276d500ce5922fd2b33944091fc6c09",
+        False,
+    ),
+    "lfm2": Model(  # hybrid convolution + attention blocks
+        "LiquidAI/LFM2-1.2B", "40f3da0d0164913923aee9462c23077868b816a3", False
+    ),
+    "r1distill": Model(  # reasoning model: template opens a <think> block
+        "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
+        "ad9f0ae0864d7fbcd1cd905e3c6c5b069cc8b562",
+        False,
+    ),
+    "falcon3": Model(
+        "tiiuae/Falcon3-1B-Instruct", "28ba2251970a01dd1edc7ba7dad2eb71216ccfdf", False
+    ),
+    # Larger: run on a GPU (notebooks/m6_3_compatibility_matrix.ipynb).
+    "phi4mini": Model(
+        "microsoft/Phi-4-mini-instruct", "cfbefacb99257ffa30c83adab238a50856ac3083", True
+    ),
+    "smollm3": Model(  # thinking mode, disabled like Qwen3's
+        "HuggingFaceTB/SmolLM3-3B", "a07cc9a04f16550a088caea529712d1d335b0ac1", True
+    ),
+    "olmoe": Model(  # mixture of experts, 7B total
+        "allenai/OLMoE-1B-7B-0125-Instruct", "b89a7c4bc24fb9e55ce2543c9458ce0ca5c4650e", True
+    ),
+    "mistral7b": Model(
+        "mistralai/Mistral-7B-Instruct-v0.3", "c170c708c41dac9275d15a8fff4eca08d52bab71", True
+    ),
 }
 _SELECTED = os.environ.get("BRIER_TEST_MODELS", "qwen3")
 SELECTED = list(MODELS) if _SELECTED == "all" else [k.strip() for k in _SELECTED.split(",")]
