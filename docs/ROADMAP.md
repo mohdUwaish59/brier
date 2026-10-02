@@ -72,6 +72,16 @@ works; the supported-families table is backed by tests and one cross-family run.
 - [ ] **M6.5** Cross-family run: raw / L0 / L1 / L2 on banking20 for about five models
   (Colab); supported-families table in README and `docs/results.md`. Then tag 0.1.0.
 
+## M7 — After 0.1.0: operability
+- [ ] **M7.1** Standard logging: one stdlib `logging` logger per module under `brier`, with a
+  `NullHandler` (brier never configures handlers or prints). INFO: model loaded (id, revision,
+  dtype, device, prompt format), `fit_prior` / `fit_temperature` / `fit_head` results (item
+  count, T, chosen L2 layer / solver / alpha, OOF accuracy, time), artifact save / load, and
+  benchmark progress per level; DEBUG: batch progress. `warnings.warn` stays for actionable
+  problems (add one for an unpinned revision). Never log state text (THREAT_MODEL T6): counts,
+  lengths and hashes only. "Logging" section in SPEC.
+  *Accept:* tests assert the records and that no state text appears in any log record.
+
 ## Later (each needs an ADR first)
 - Certified abstention: split-conformal sets and Learn-then-Test thresholds.
 - One state, many questions: shared-prefix KV reuse.
