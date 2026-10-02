@@ -42,7 +42,21 @@ L1 and L2 use 300 labels. Full tables, protocol and caveats:
 | ECE ↓ | 0.357 | 0.299 | 0.094 | **0.035** [0.028, 0.050] |
 | NLL ↓ | 6.541 | 3.845 | 1.204 | **0.727** [0.672, 0.781] |
 
-One task so far: treat these as evidence that the method works, not as a general claim.
+Across six model families (same task and labels; point estimates):
+
+| Model | Accuracy: raw → L0 → L2 | ECE: raw → L1 → L2 | Order flips: raw → L0 |
+|---|---|---|---|
+| Qwen3-1.7B | 0.626 → 0.668 → **0.807** | 0.357 → 0.094 → **0.035** | 0.364 → 0.201 |
+| Falcon3-1B-Base (no chat template) | 0.155 → 0.601 → **0.804** | 0.119 → 0.162 → **0.072** | 0.990 → 0.371 |
+| LFM2-1.2B (hybrid convolution) | 0.200 → 0.617 → **0.802** | 0.336 → 0.064 → **0.036** | 0.972 → 0.415 |
+| SmolLM3-3B | 0.660 → 0.746 → **0.834** | 0.190 → **0.030** → 0.039 | 0.279 → 0.123 |
+| Phi-4-mini (3.8B) | 0.711 → 0.786 → **0.859** | 0.186 → **0.022** → 0.057 | 0.275 → 0.099 |
+| OLMoE-1B-7B (mixture of experts) | 0.257 → 0.686 → **0.819** | 0.068 → 0.098 → **0.084** | 0.945 → 0.316 |
+
+Zero labels (L0) raise accuracy and cut order flips on every model; with 300 labels (L2) every
+model lands at 0.80–0.86 accuracy. One task so far: evidence that the method works, not a
+general claim. Details and caveats in
+[`docs/results.md`](https://github.com/mohdUwaish59/brier/blob/main/docs/results.md).
 
 ## Install
 

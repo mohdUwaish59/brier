@@ -1,0 +1,52 @@
+# M6.5 cross-family run, banking20 (notebooks/m6_5_cross_family_benchmark.ipynb), A100, bf16,
+# brier commit 355f90d46fef1ee36f8510b1c8e5ab2d46b34fad, 2026-10-02. Verbatim notebook output.
+# The per-model result JSON (with bootstrap CIs and NLL) was lost when the Colab runtime
+# disconnected; mistral7b did not finish.
+
+===== falcon3base: tiiuae/Falcon3-1B-Base @ cb37ef3 =====
+started 20:32:44 - no output until this model finishes
+finished 20:46:12
+ raw: accuracy=0.155 ece=0.119 flip_rate=0.990
+  L0: accuracy=0.601 ece=0.519 flip_rate=0.371
+  L1: accuracy=0.601 ece=0.162 flip_rate=0.371
+  L2: accuracy=0.804 ece=0.072 flip_rate=0.136
+
+
+===== lfm2: LiquidAI/LFM2-1.2B @ 40f3da0 =====
+started 20:46:12 - no output until this model finishes
+finished 20:58:07
+ raw: accuracy=0.200 ece=0.336 flip_rate=0.972
+  L0: accuracy=0.617 ece=0.280 flip_rate=0.415
+  L1: accuracy=0.617 ece=0.064 flip_rate=0.415
+  L2: accuracy=0.802 ece=0.036 flip_rate=0.191
+
+
+===== smollm3: HuggingFaceTB/SmolLM3-3B @ a07cc9a =====
+started 20:58:07 - no output until this model finishes
+finished 21:25:33
+ raw: accuracy=0.660 ece=0.190 flip_rate=0.279
+  L0: accuracy=0.746 ece=0.084 flip_rate=0.123
+  L1: accuracy=0.746 ece=0.030 flip_rate=0.123
+  L2: accuracy=0.834 ece=0.039 flip_rate=0.162
+
+
+===== phi4mini: microsoft/Phi-4-mini-instruct @ cfbefac =====
+started 21:25:33 - no output until this model finishes
+finished 21:52:52
+ raw: accuracy=0.711 ece=0.186 flip_rate=0.275
+  L0: accuracy=0.786 ece=0.116 flip_rate=0.099
+  L1: accuracy=0.786 ece=0.022 flip_rate=0.099
+  L2: accuracy=0.859 ece=0.057 flip_rate=0.117
+
+
+===== olmoe: allenai/OLMoE-1B-7B-0125-Instruct @ b89a7c4 =====
+started 21:52:53 - no output until this model finishes
+finished 22:15:54
+ raw: accuracy=0.257 ece=0.068 flip_rate=0.945
+  L0: accuracy=0.686 ece=0.472 flip_rate=0.316
+  L1: accuracy=0.686 ece=0.098 flip_rate=0.316
+  L2: accuracy=0.819 ece=0.084 flip_rate=0.193
+
+
+===== mistral7b: mistralai/Mistral-7B-Instruct-v0.3 @ c170c70 =====
+started 22:15:55 - no output until this model finishes
