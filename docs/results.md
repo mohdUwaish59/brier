@@ -103,8 +103,8 @@ L2 costs one forward pass per decision (68 s wall time for the whole L2 run on a
 ### Reading
 
 - **L2 improves every metric at once.** With 300 labels accuracy rises from 0.668 to 0.807
-  (+13.9 points; the two 95 % CIs do not overlap) while ECE falls to 0.035 and NLL to 0.727 — better calibrated than L1 at much higher
-  accuracy. 61 % of decisions can be automated at ≤ 5 % in-sample error (L1: 18 %).
+  (+13.9 points; the two 95 % CIs do not overlap) while ECE falls to 0.035 and NLL to
+  0.727 — better calibrated than L1 at much higher accuracy. 61 % of decisions can be automated at ≤ 5 % in-sample error (L1: 18 %).
 - **More labels help, with diminishing returns:** 100 → 200 → 300 labels gives accuracy
   0.73 → 0.79 → 0.81 and ECE 0.063 → 0.033 → 0.035. Selection settles on ridge at blocks 22–24
   of 28 (≈ 80–85 % depth).
