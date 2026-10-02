@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 
@@ -83,6 +84,19 @@ def test_load_refuses_other_model_or_revision(tmp_path: Path) -> None:
         Decider.load(tmp_path / "c", _backend(revision="abc123"))
 
 
+def test_save_records_dtype_and_load_refuses_another(tmp_path: Path) -> None:
+    d = Decider(_backend(dtype="bfloat16"), prior_strength=0.7)
+    d.fit_prior(STATES, [ROUTE])
+    d.save(tmp_path / "c")
+    j = json.loads((tmp_path / "c" / "artifact.json").read_text(encoding="utf-8"))
+    assert j["model"]["dtype"] == "bfloat16"
+    assert Decider.load(tmp_path / "c", _backend(dtype="bfloat16"))
+    with pytest.raises(ArtifactError, match="dtype"):
+        Decider.load(tmp_path / "c", _backend(dtype="float32"))
+    with pytest.raises(ArtifactError, match="dtype"):
+        Decider.load(tmp_path / "c", _backend())  # backend without a dtype
+
+
 def test_save_refuses_non_empty_directory(tmp_path: Path) -> None:
     d = _fitted()
     d.save(tmp_path / "c")
@@ -102,3 +116,11 @@ def test_loaded_decider_can_be_refitted(tmp_path: Path) -> None:
     loaded.fit_prior(STATES[:10], [REFUND])  # refitting the prior discards its temperature
     with pytest.raises(NotFittedError):
         loaded.decide("s", [REFUND], level="L1")
+
+
+def test_non_string_backend_dtype_is_a_clear_error(tmp_path: Path) -> None:
+    from brier.errors import BrierError
+
+    backend = _backend(dtype=16)  # type: ignore[arg-type]
+    with pytest.raises(BrierError, match="dtype must be a string"):
+        Decider(backend).save(tmp_path / "c")

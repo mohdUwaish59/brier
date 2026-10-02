@@ -1,6 +1,6 @@
 # ADR-0006: Artifact schema version 2 stores L2 heads
 
-Status: accepted
+Status: accepted (schema version 3, adding the model dtype, is in ADR-0007)
 
 ## Context
 L2 (`heads/select.py`) produces a fitted head per question: a layer, a solver (ridge or LDA),
