@@ -98,13 +98,12 @@ Label curve (L2 head chosen per budget):
 | 200 | 24 | ridge | 100 | 0.138 | 0.788 [0.773, 0.804] | 0.033 [0.031, 0.054] | 0.811 [0.759, 0.865] |
 | 300 | 22 | ridge | 100 | 0.128 | 0.807 [0.793, 0.823] | 0.035 [0.028, 0.050] | 0.727 [0.672, 0.781] |
 
-L2 costs one forward pass per decision (68 s for 2 × 2,903 prompts incl. feature extraction).
+L2 costs one forward pass per decision (68 s wall time for the whole L2 run on an A100).
 
 ### Reading
 
 - **L2 improves every metric at once.** With 300 labels accuracy rises from 0.668 to 0.807
-  (+13.9 points, paired CI [+12.1, +15.6] in the full M5.4 run, which used the same selected
-  head) while ECE falls to 0.035 and NLL to 0.727 — better calibrated than L1 at much higher
+  (+13.9 points; the two 95 % CIs do not overlap) while ECE falls to 0.035 and NLL to 0.727 — better calibrated than L1 at much higher
   accuracy. 61 % of decisions can be automated at ≤ 5 % in-sample error (L1: 18 %).
 - **More labels help, with diminishing returns:** 100 → 200 → 300 labels gives accuracy
   0.73 → 0.79 → 0.81 and ECE 0.063 → 0.033 → 0.035. Selection settles on ridge at blocks 22–24
