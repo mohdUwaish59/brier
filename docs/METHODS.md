@@ -70,6 +70,13 @@ shrunk `Σ_γ = (1−γ)Σ + γ (tr Σ / d) I` with Ledoit–Wolf γ. When n < d
 `Σ_γ^{-1} m_c` via the Woodbury identity. Scores:
 `s_c = xᵀΣ_γ^{-1}m_c − ½ m_cᵀΣ_γ^{-1}m_c + log π_c`.
 
+*Implementation notes (M5.1):* `σ` is the population standard deviation (ddof 0). The pooled
+within-class covariance is `Σ = ZᵀZ / n` with residuals `Z = X − M[y]` (the 1/n estimate the
+Ledoit–Wolf formula is defined on). Ledoit–Wolf: `μ = tr Σ / d`, `δ² = ‖Σ − μI‖²_F`,
+`β̄² = (1/n²) Σ_k ‖z_k z_kᵀ − Σ‖²_F`, `γ = min(β̄², δ²) / δ²`, all computed from the n×n Gram
+matrix `Z Zᵀ`. `π_c` are training class frequencies; every class must appear. With n < d and
+`γ ≈ 0` the shrunk covariance is singular and fitting raises.
+
 **Probabilities.** `log p = norm(s / T)` with `T` fitted on out-of-fold scores.
 
 **Selection.** Stratified k-fold (k=5, seeded) over the grid
