@@ -77,8 +77,8 @@ Questions:
 - **`Noul(text, name=...)`**: yes/no; `p_yes` is the probability of yes.
 - **`Score(text, levels, name=...)`**: an integer rating `1..levels`; `expected` is the mean.
 
-Works with Hugging Face chat models that ship safetensors weights. Check yours before
-calibrating:
+Works with Hugging Face causal LMs that ship safetensors weights: chat models through their
+chat template, base models through a plain-text prompt. Check yours before calibrating:
 
 ```text
 $ brier check Qwen/Qwen3-0.6B --revision c1899de289a04d12100db370d81485cdf75e47ca

@@ -14,7 +14,7 @@ import pytest
 from brier import Choice, Noul, Score
 from brier.debias import l0_logprobs
 from brier.errors import BrierError, InputTooLargeError, TokenizationError
-from brier.prompts import labels, render
+from brier.prompts import ANSWER_PREFIX, SYSTEM, labels, render
 from brier.readout import raw_logprobs, resolve_labels
 
 pytestmark = pytest.mark.integration
@@ -26,6 +26,7 @@ class Model(NamedTuple):
     revision: str
     capable: bool  # answers simple sanity questions correctly (quality, not compatibility)
     attn: str | None = None  # attention kernel override, see docs/COMPATIBILITY.md
+    plain: bool = False  # no chat template: plain-text prompt (ADR-0008)
 
 
 MODELS = {
@@ -58,6 +59,13 @@ MODELS = {
     ),
     "falcon3": Model(
         "tiiuae/Falcon3-1B-Instruct", "28ba2251970a01dd1edc7ba7dad2eb71216ccfdf", False
+    ),
+    # M6.4: base models without a chat template (plain-text prompt, ADR-0008).
+    "smollm2base": Model(
+        "HuggingFaceTB/SmolLM2-360M", "f8027fd0eaeea54caa13c31d31b9fdc459c38b49", False, plain=True
+    ),
+    "olmo2base": Model(
+        "allenai/OLMo-2-0425-1B", "a1847dff35000b4271fa70afc5db10fd29fedbdf", False, plain=True
     ),
     # Larger: run on a GPU (notebooks/m6_3_compatibility_matrix.ipynb).
     "phi4mini": Model(
@@ -103,6 +111,13 @@ def test_metadata(backend, model) -> None:  # type: ignore[no-untyped-def]
     assert backend.model_id == model.id
     assert backend.revision == model.revision
     assert backend.num_layers == backend.model.config.num_hidden_layers == len(backend.layers)
+
+
+def test_prompt_format(backend, model) -> None:  # type: ignore[no-untyped-def]
+    assert backend.prompt_format == ("plain" if model.plain else "chat")
+    if model.plain:  # ADR-0008: SYSTEM, blank line, user message, newline, "Answer:"
+        text = backend.tokenizer.decode(backend.encode("USER"), skip_special_tokens=True)
+        assert text == f"{SYSTEM}\n\nUSER\n{ANSWER_PREFIX}"
 
 
 def test_prompt_ends_with_answer_prefix(backend) -> None:  # type: ignore[no-untyped-def]

@@ -302,3 +302,17 @@ def test_cli_works_when_streams_cannot_be_reconfigured(
     monkeypatch.setattr(cli, "_make_backend", lambda args: _knowing_backend())
     assert main(["check", "some/model"]) == 0
     assert "Result: OK" in out.getvalue()
+
+
+@dataclass(frozen=True)
+class _Plain(FakeBackend):
+    prompt_format: str = "plain"
+
+
+def test_prompt_format_is_reported_when_the_backend_has_one() -> None:
+    assert "prompt_format" not in {i.name for i in check_backend(FakeBackend()).items}
+    report = check_backend(_Plain(revision="x"))
+    assert _status(report, "prompt_format") == "pass"
+    assert "no chat template" in next(i.detail for i in report.items if i.name == "prompt_format")
+    other = check_backend(_Plain(revision="x", prompt_format="custom"))
+    assert next(i.detail for i in other.items if i.name == "prompt_format") == "custom"

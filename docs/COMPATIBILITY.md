@@ -1,7 +1,8 @@
 # Model compatibility
 
-`HFBackend` works with any Hugging Face causal LM that has a **chat template** and
-**safetensors** weights (`trust_remote_code` is never enabled).
+`HFBackend` works with Hugging Face causal LMs with **safetensors** weights
+(`trust_remote_code` is never enabled). Models with a chat template are prompted through it;
+**base models without one get a plain-text prompt** (ADR-0008; `brier check` shows which).
 
 **Check your own model first:**
 
@@ -32,12 +33,14 @@ BRIER_TEST_MODELS=all uv run pytest -m integration      # or e.g. qwen3,gemma3
 | `smollm3` | `HuggingFaceTB/SmolLM3-3B` @ `a07cc9a` | ChatML + metadata system block; empty `<think>` block | `ĠA`, `ĠYes` | letters | Thinking disabled with `enable_thinking=False`; **template inserts today's date** (see below); sanity 93 % |
 | `olmoe` | `allenai/OLMoE-1B-7B-0125-Instruct` @ `b89a7c4` | Tülu-style (`<\|user\|>`) | `ĠA`, `ĠYes` | **digits** (` 10` is one token) | **Mixture of experts** (7B total); sanity 93 % |
 | `mistral7b` | `mistralai/Mistral-7B-Instruct-v0.3` @ `c170c70` | `[INST]`; system text merged into the user turn | `▁A`, `▁Yes` (SentencePiece) | letters | 7B; sanity 100 % |
+| `smollm2base` | `HuggingFaceTB/SmolLM2-360M` @ `f8027fd` | **none: plain-text prompt** (ADR-0008) | `ĠA`, `ĠYes` | letters | Base model; sanity raw 36 % / L0 43 % |
+| `olmo2base` | `allenai/OLMo-2-0425-1B` @ `a1847df` | **none: plain-text prompt** (ADR-0008) | `ĠA`, `ĠYes` | letters | Base model; weak answers |
 
 All pass: template split, special-token injection blocked, batched = unbatched within
 1e-4 (fp32), padding-invariant, strict label tokens, hidden states equal a full forward pass,
 early stop after the deepest layer, size limits, and `Decider` raw/L0 end to end.
 
-The first five families and `granitemoe` were run on a CPU; `lfm2` to `mistral7b` on an
+The first five families, `granitemoe` and the two base models were run on a CPU; `lfm2` to `mistral7b` on an
 A100 in fp32 (`notebooks/m6_3_compatibility_matrix.ipynb`). `brier check` passed on all of
 them. On the GPU one test failed for every model because the test built its reference input
 on the CPU, and `olmoe` failed two tests that assumed ` 10` is never a single token; both
@@ -73,6 +76,6 @@ were test bugs, fixed in `51ae987`.
 
 ## Not supported (yet)
 
-- **Base models without a chat template** raise `BrierError`. A plain-text fallback would be
-  a new prompt template and needs an ADR (ADR-0001).
+- **Models whose layers are not at `model.get_decoder().layers`** (e.g. GPT-2, which keeps
+  them at `transformer.h`) fail to load: layer discovery is not generic yet.
 - Models that need `trust_remote_code=True` or ship only `.bin`/pickle weights.

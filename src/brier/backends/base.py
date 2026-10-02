@@ -13,7 +13,8 @@ class Backend(Protocol):
     """A causal LM that can score label tokens and expose hidden states.
 
     ``prompts`` are user messages from :func:`brier.prompts.render`; the backend wraps
-    them in its chat template with ``prompts.SYSTEM`` and ``prompts.ANSWER_PREFIX``.
+    them in its prompt format (a chat template, or plain text for base models, ADR-0008)
+    with ``prompts.SYSTEM`` and ``prompts.ANSWER_PREFIX``.
     """
 
     model_id: str

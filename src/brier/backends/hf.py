@@ -25,6 +25,38 @@ _ATTN = ("eager", "sdpa", "flash_attention_2")
 _MAX_CHARS_PER_TOKEN = 32
 
 
+def _template_texts(tokenizer: Any) -> tuple[str, str, str]:
+    """Prompt format and the text before / after the user message (ADR-0008).
+
+    Returns ``(format, before, after)``; ``after`` ends with :data:`ANSWER_PREFIX`. With a
+    chat template the format is ``"chat"``; without one it is ``"plain"``:
+    ``SYSTEM``, a blank line, the user message, a newline and ``ANSWER_PREFIX``.
+    """
+    if not getattr(tokenizer, "chat_template", None):
+        return "plain", f"{SYSTEM}\n\n", f"\n{ANSWER_PREFIX}"
+    messages = [
+        {"role": "system", "content": SYSTEM},
+        {"role": "user", "content": _SENTINEL},
+    ]
+    text = tokenizer.apply_chat_template(
+        messages, tokenize=False, add_generation_prompt=True, enable_thinking=False
+    )
+    if not isinstance(text, str) or text.count(_SENTINEL) != 1:
+        raise BrierError("chat template must contain the user message exactly once")
+    before, after = text.split(_SENTINEL)
+    return "chat", before, after + ANSWER_PREFIX
+
+
+def _leading_special_ids(tokenizer: Any) -> list[int]:
+    """Return the special tokens the tokenizer puts before a text (e.g. BOS), for plain prompts."""
+    bare: list[int] = tokenizer("x", add_special_tokens=False)["input_ids"]
+    full: list[int] = tokenizer("x", add_special_tokens=True)["input_ids"]
+    for i in range(len(full) - len(bare) + 1):
+        if full[i : i + len(bare)] == bare:
+            return full[:i]
+    raise TokenizationError("cannot tell which special tokens the tokenizer adds before text")
+
+
 class _StopForward(Exception):  # noqa: N818 - control flow, not an error
     """Raised by a hook to stop the forward pass after the deepest requested layer."""
 
@@ -35,7 +67,8 @@ class HFBackend:
     Parameters
     ----------
     model_id : str
-        Hugging Face model id. The model must have a chat template.
+        Hugging Face model id. Models with a chat template are prompted through it; models
+        without one (base models) get a plain-text prompt (ADR-0008, :attr:`prompt_format`).
     revision : str or None
         Commit sha to pin (recommended).
     device : str or None
@@ -54,8 +87,8 @@ class HFBackend:
     Raises
     ------
     BrierError
-        If the ``hf`` extra is missing, an argument is invalid or the model has no
-        usable chat template.
+        If the ``hf`` extra is missing, an argument is invalid or the chat template is
+        unusable.
     """
 
     def __init__(
@@ -105,7 +138,11 @@ class HFBackend:
         self._decoder: Any = self.model.get_decoder()
         self.layers: Any = self._decoder.layers
         self.num_layers: int = len(self.layers)
-        self._prefix, self._suffix = self._split_template()
+        fmt, before, after = _template_texts(self.tokenizer)
+        self.prompt_format: str = fmt  # "chat" or "plain" (ADR-0008)
+        lead = _leading_special_ids(self.tokenizer) if fmt == "plain" else []
+        self._prefix: list[int] = lead + self._ids(before)
+        self._suffix: list[int] = self._ids(after)  # ends with the answer prefix
         pad = self.tokenizer.pad_token_id
         pad = pad if pad is not None else self.tokenizer.eos_token_id
         if pad is None:
@@ -113,22 +150,6 @@ class HFBackend:
         self._pad_id: int = pad
         context = getattr(self.model.config, "max_position_embeddings", None) or max_prompt_tokens
         self.max_prompt_tokens: int = min(max_prompt_tokens, context)
-
-    def _split_template(self) -> tuple[list[int], list[int]]:
-        """Token ids before and after the user message (suffix ends with the answer prefix)."""
-        if not getattr(self.tokenizer, "chat_template", None):
-            raise BrierError(f"{self.model_id} has no chat template")
-        messages = [
-            {"role": "system", "content": SYSTEM},
-            {"role": "user", "content": _SENTINEL},
-        ]
-        text = self.tokenizer.apply_chat_template(
-            messages, tokenize=False, add_generation_prompt=True, enable_thinking=False
-        )
-        if not isinstance(text, str) or text.count(_SENTINEL) != 1:
-            raise BrierError("chat template must contain the user message exactly once")
-        before, after = text.split(_SENTINEL)
-        return self._ids(before), self._ids(after + ANSWER_PREFIX)
 
     def _ids(self, text: str, *, split_special: bool = False) -> list[int]:
         ids: list[int] = self.tokenizer(
