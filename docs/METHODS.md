@@ -85,6 +85,17 @@ out-of-fold NLL, then refit on all labels. Store the choice and OOF metrics in t
 Default layer grid: every 2nd block from 40 % to 90 % depth.
 Minimum: 5 labels per class and 60 total (else `InsufficientDataError`).
 
+*Implementation notes (M5.2):* folds deal each class's shuffled items round-robin; `k` must not
+exceed the smallest class count, so every fold holds every class. α grid: `{1e-2, 1e-1, 1, 10, 1e2, 1e3, 1e4}` for ridge; LDA has no α
+and is tried once per layer. A candidate's OOF NLL is measured **after** fitting its own
+temperature on its OOF scores, so ridge (scores are not log-probabilities) and LDA compete
+fairly. L2 temperatures are searched over `t = log T ∈ [−7, 7]` (L1 keeps `[−3, 3]`):
+ridge scores differ by ~0.1–1 and need T ≪ e^-3, LDA scores can differ by hundreds. If T
+lands on a bound (OOF scores nearly separable) the selection records `temperature_at_bound`.
+The reported OOF NLL/accuracy are the minimum over the grid, so they are optimistic
+(winner's curse): a diagnostic, not a held-out estimate. A
+candidate whose head cannot be fitted (e.g. degenerate LDA on one layer) scores `inf`.
+
 ## References
 
 - Zhao et al. 2021, *Calibrate Before Use*, arXiv:2102.09690

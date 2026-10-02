@@ -59,7 +59,13 @@ def _check(logp: npt.ArrayLike, labels: npt.ArrayLike) -> tuple[FloatArray, npt.
     return lp, y
 
 
-def fit_temperature(logp: npt.ArrayLike, labels: npt.ArrayLike, *, tol: float = 1e-6) -> float:
+def fit_temperature(
+    logp: npt.ArrayLike,
+    labels: npt.ArrayLike,
+    *,
+    tol: float = 1e-6,
+    log_t_bounds: tuple[float, float] = LOG_T_BOUNDS,
+) -> float:
     """Fit ``T`` minimising mean NLL of ``norm(logp / T)`` on labelled items.
 
     Golden-section search over ``t = log T`` in ``[-3, 3]``; the result is compared with
@@ -73,11 +79,14 @@ def fit_temperature(logp: npt.ArrayLike, labels: npt.ArrayLike, *, tol: float = 
         ``(N,)`` int labels in ``[0, K)``.
     tol : float
         Width of the final bracket in ``t``.
+    log_t_bounds : tuple of float
+        Search range for ``t = log T``; default ``(-3, 3)`` (L1). L2 head scores live on
+        other scales and use a wider range (METHODS.md, L2).
 
     Returns
     -------
     float
-        The fitted temperature ``T`` in ``[e^-3, e^3]``.
+        The fitted temperature ``T`` in ``[exp(lo), exp(hi)]``.
 
     Raises
     ------
@@ -88,13 +97,18 @@ def fit_temperature(logp: npt.ArrayLike, labels: npt.ArrayLike, *, tol: float = 
     """
     if isinstance(tol, bool) or not (math.isfinite(float(tol)) and float(tol) > 0):
         raise BrierError("tol must be a finite number > 0")
+    lo, hi = log_t_bounds
+    if not all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in (lo, hi)):
+        raise BrierError("log_t_bounds must be two numbers")
+    if not (math.isfinite(lo) and math.isfinite(hi) and lo < hi):
+        raise BrierError("log_t_bounds must be finite with lo < hi")
     lp, y = _check(logp, labels)
     rows = np.arange(len(y))
 
     def nll(t: float) -> float:
         return float(-np.mean(norm(lp / math.exp(t))[rows, y]))
 
-    a, b = LOG_T_BOUNDS
+    a, b = lo, hi
     c, d = b - _INV_PHI * (b - a), a + _INV_PHI * (b - a)
     fc, fd = nll(c), nll(d)
     while b - a > tol:
@@ -108,7 +122,6 @@ def fit_temperature(logp: npt.ArrayLike, labels: npt.ArrayLike, *, tol: float = 
             fd = nll(d)
     mid = (a + b) / 2
     # The NLL is unimodal in t for practical data; checking the endpoints guards the rest.
-    candidates = [(nll(mid), mid), (nll(LOG_T_BOUNDS[0]), LOG_T_BOUNDS[0])]
-    candidates.append((nll(LOG_T_BOUNDS[1]), LOG_T_BOUNDS[1]))
+    candidates = [(nll(mid), mid), (nll(lo), lo), (nll(hi), hi)]
     best_t = min(candidates, key=lambda c: c[0])[1]
     return math.exp(best_t)
