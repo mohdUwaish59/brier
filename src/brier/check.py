@@ -252,6 +252,13 @@ def check_backend(backend: Backend) -> CheckReport:
         )
     else:
         items.append(CheckItem("revision", "pass", str(backend.revision)))
+    prompt_format = getattr(backend, "prompt_format", None)
+    if prompt_format is not None:
+        detail = {
+            "chat": "the model's chat template",
+            "plain": "plain text: the model has no chat template (base model, ADR-0008)",
+        }.get(str(prompt_format), str(prompt_format))
+        items.append(CheckItem("prompt_format", "pass", detail))
     label_items = _check_labels(backend)
     items += label_items
     items.append(_check_batch(backend))

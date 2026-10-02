@@ -68,7 +68,7 @@ works; the supported-families table is backed by tests and one cross-family run.
   `docs/COMPATIBILITY.md`; a scheduled CI job runs the integration suite on the smallest model
   with the latest dependency versions; a CI job tests the declared minimum versions; the README
   quickstart runs as a unit test.
-- [ ] **M6.4** Base models without a chat template: plain-text prompt (ADR first).
+- [x] **M6.4** Base models without a chat template: plain-text prompt (ADR-0008).
 - [ ] **M6.5** Cross-family run: raw / L0 / L1 / L2 on banking20 for about five models
   (Colab); supported-families table in README and `docs/results.md`. Then tag 0.1.0.
 
@@ -77,6 +77,8 @@ works; the supported-families table is backed by tests and one cross-family run.
 - One state, many questions: shared-prefix KV reuse.
 - Ordinal (cumulative-logit) heads for Score.
 - More than 26 options (shortlist + rotated comparison).
+- Generic layer discovery for models whose blocks are not at `get_decoder().layers`
+  (GPT-2's `transformer.h`).
 - Reasoning templates that always open a thinking block (DeepSeek-R1-Distill): close it
   before the answer prefix (ADR-0004 amendment).
 - vLLM backend.
