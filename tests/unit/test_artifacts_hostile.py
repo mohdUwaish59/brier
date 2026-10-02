@@ -86,7 +86,7 @@ def test_huge_declared_shape_is_rejected_without_allocating(tmp_path: Path) -> N
     d = _save(tmp_path)
     bomb = _npy({"descr": "<f8", "fortran_order": False, "shape": (10**12,)}, b"")
     _set_npz(d, _zip([("prior_0.npy", bomb)]))
-    with pytest.raises(ArtifactError, match="length 3"):
+    with pytest.raises(ArtifactError, match="expected shape"):
         _load(d)
 
 
@@ -248,7 +248,7 @@ def test_unexpected_internal_error_is_wrapped(tmp_path: Path, monkeypatch) -> No
     def boom(*a, **k):  # type: ignore[no-untyped-def]
         raise MemoryError("simulated")
 
-    monkeypatch.setattr(artifacts, "_read_priors", boom)
+    monkeypatch.setattr(artifacts, "_read_arrays", boom)
     with pytest.raises(ArtifactError, match="MemoryError"):
         _load(d)
 

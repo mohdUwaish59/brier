@@ -8,7 +8,7 @@ mean NLL over ``t = log T`` in ``[-3, 3]`` with a bounded golden-section search 
 from __future__ import annotations
 
 import math
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 import numpy.typing as npt
@@ -65,6 +65,7 @@ def fit_temperature(
     *,
     tol: float = 1e-6,
     log_t_bounds: tuple[float, float] = LOG_T_BOUNDS,
+    smoothing: Literal["none", "platt"] = "none",
 ) -> float:
     """Fit ``T`` minimising mean NLL of ``norm(logp / T)`` on labelled items.
 
@@ -82,6 +83,11 @@ def fit_temperature(
     log_t_bounds : tuple of float
         Search range for ``t = log T``; default ``(-3, 3)`` (L1). L2 head scores live on
         other scales and use a wider range (METHODS.md, L2).
+    smoothing : {"none", "platt"}
+        ``"platt"`` fits against smoothed targets (Platt 1999, generalised to K classes):
+        ``(n_c + 1) / (n_c + K)`` for an item's class ``c`` and ``1 / (n_c + K)`` for every
+        other class, where ``n_c`` counts class ``c``. On separable scores this keeps ``T``
+        finite instead of driving it to the bound (used by L2). ``"none"``: plain NLL (L1).
 
     Returns
     -------
@@ -102,11 +108,23 @@ def fit_temperature(
         raise BrierError("log_t_bounds must be two numbers")
     if not (math.isfinite(lo) and math.isfinite(hi) and lo < hi):
         raise BrierError("log_t_bounds must be finite with lo < hi")
+    if smoothing not in ("none", "platt"):
+        raise BrierError("smoothing must be 'none' or 'platt'")
     lp, y = _check(logp, labels)
     rows = np.arange(len(y))
+    if smoothing == "platt":
+        k = lp.shape[1]
+        n_c = np.bincount(y, minlength=k)[y].astype(np.float64)  # count of each item's class
+        targets = np.repeat((1.0 / (n_c + k))[:, None], k, axis=1)
+        targets[rows, y] = (n_c + 1.0) / (n_c + k)
 
-    def nll(t: float) -> float:
-        return float(-np.mean(norm(lp / math.exp(t))[rows, y]))
+        def nll(t: float) -> float:
+            return float(-np.mean(np.sum(targets * norm(lp / math.exp(t)), axis=1)))
+
+    else:
+
+        def nll(t: float) -> float:
+            return float(-np.mean(norm(lp / math.exp(t))[rows, y]))
 
     a, b = lo, hi
     c, d = b - _INV_PHI * (b - a), a + _INV_PHI * (b - a)

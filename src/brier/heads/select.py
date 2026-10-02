@@ -3,8 +3,10 @@
 Stratified k-fold (k = 5, seeded) over ``layers x alpha x solver``: ridge for each alpha on a
 log grid, shrinkage LDA once per layer (it has no alpha). Each candidate's out-of-fold (OOF)
 scores are temperature-scaled before their NLL is compared, so ridge scores (not
-log-probabilities) and LDA scores compete fairly. The best candidate is refitted on all
-labels and its temperature is the one fitted on its OOF scores.
+log-probabilities) and LDA scores compete fairly; the temperature is fitted against
+Platt-smoothed targets so separable OOF scores do not drive it to its bound, while the
+candidates are compared by plain (hard-label) OOF NLL. The best candidate is refitted on
+all labels and its temperature is the one fitted on its OOF scores.
 """
 
 from __future__ import annotations
@@ -52,7 +54,7 @@ class L2Selection:
     alpha: float | None
     head: RidgeHead | LdaHead
     temperature: float
-    temperature_at_bound: bool  # T hit the search bound: OOF scores were ~separable
+    temperature_at_bound: bool  # T hit a search bound (lower: tiny score gaps; upper: no signal)
     oof_nll: float  # min over the grid: optimistic, a diagnostic not a held-out estimate
     oof_accuracy: float
     grid: tuple[Candidate, ...]
@@ -177,7 +179,7 @@ def select_head(
                     train = np.setdiff1d(np.arange(len(y)), f)
                     oof[f] = _fit(h[train], y[train], n_classes, solver, alpha).scores(h[f])
                 lp = norm(oof)
-                t = fit_temperature(lp, y, log_t_bounds=L2_LOG_T_BOUNDS)
+                t = fit_temperature(lp, y, log_t_bounds=L2_LOG_T_BOUNDS, smoothing="platt")
                 oof_logp = norm(oof / t)
                 score = float(-np.mean(oof_logp[np.arange(len(y)), y]))
             except BrierError:  # e.g. degenerate LDA on this layer: skip, keep searching

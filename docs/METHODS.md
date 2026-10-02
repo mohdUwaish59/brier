@@ -77,7 +77,13 @@ Ledoit–Wolf formula is defined on). Ledoit–Wolf: `μ = tr Σ / d`, `δ² = �
 matrix `Z Zᵀ`. `π_c` are training class frequencies; every class must appear. With n < d and
 `γ ≈ 0` the shrunk covariance is singular and fitting raises.
 
-**Probabilities.** `log p = norm(s / T)` with `T` fitted on out-of-fold scores.
+**Probabilities.** `log p = norm(s / T)` with `T` fitted on out-of-fold scores against
+Platt-smoothed targets (Platt 1999, generalised to C classes): `(n_c + 1)/(n_c + C)` for
+an item's class `c`, `1/(n_c + C)` for each other class. On separable OOF scores a 0/1
+target would drive `T → 0` (near-0/1 probabilities); smoothed targets keep `T` finite and
+barely matter when the data are not separable. Candidates are still compared by plain OOF NLL.
+The smoothing is strong with many classes and few labels (C = 10, n_c = 5 caps the true-class
+target at 6/15 = 0.4), so such heads come out deliberately underconfident.
 
 **Selection.** Stratified k-fold (k=5, seeded) over the grid
 `layers × α ∈ {1e-2,…,1e4} (log grid) × solver ∈ {ridge, lda}`; choose by
@@ -91,7 +97,8 @@ and is tried once per layer. A candidate's OOF NLL is measured **after** fitting
 temperature on its OOF scores, so ridge (scores are not log-probabilities) and LDA compete
 fairly. L2 temperatures are searched over `t = log T ∈ [−7, 7]` (L1 keeps `[−3, 3]`):
 ridge scores differ by ~0.1–1 and need T ≪ e^-3, LDA scores can differ by hundreds. If T
-lands on a bound (OOF scores nearly separable) the selection records `temperature_at_bound`.
+lands on a bound the selection records `temperature_at_bound` (lower bound: score gaps too
+small to sharpen enough, and `fit_head` warns; upper bound: no signal, near-uniform output).
 The reported OOF NLL/accuracy are the minimum over the grid, so they are optimistic
 (winner's curse): a diagnostic, not a held-out estimate. A
 candidate whose head cannot be fitted (e.g. degenerate LDA on one layer) scores `inf`.
@@ -102,5 +109,6 @@ candidate whose head cannot be fitted (e.g. degenerate LDA on one layer) scores 
 - Zheng et al. 2024, *LLMs Are Not Robust Multiple Choice Selectors*, arXiv:2309.03882
 - Zhou et al. 2024, *Batch Calibration*, arXiv:2309.17249
 - Guo et al. 2017, *On Calibration of Modern Neural Networks*, arXiv:1706.04599
+- Platt 1999, *Probabilistic Outputs for Support Vector Machines* (smoothed targets)
 - Ledoit & Wolf 2004, *A well-conditioned estimator for large-dimensional covariance matrices*
 - Skean et al. 2025, *Layer by Layer*, arXiv:2502.02013 (intermediate layers)

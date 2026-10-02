@@ -265,3 +265,61 @@ def test_decider_save_load_round_trip(backend, tmp_path) -> None:  # type: ignor
         a = [r["refund"].probs for r in d.decide_batch(probe, [q], level)]
         b = [r["refund"].probs for r in loaded.decide_batch(probe, [q], level)]
         assert a == b
+
+
+# ---------- M5.2b L2 end to end ----------
+
+
+def test_decider_l2_fit_decide_and_round_trip(backend, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    from itertools import product
+
+    from brier import Decider
+
+    q = Noul("Is the customer asking for a refund?", name="refund")
+    # Varied phrasings: templated states are trivially separable and teach the template.
+    refund = [
+        f"{a} {b}"
+        for a, b in product(
+            ["I'd like", "Please give me", "Can I get", "I want", "Send me"],
+            [
+                "a refund for my order.",
+                "my money back.",
+                "a reimbursement.",
+                "the charge reversed.",
+                "a full refund.",
+                "my payment returned.",
+            ],
+        )
+    ]
+    other = [
+        f"{a} {b}"
+        for a, b in product(
+            [
+                "Where is",
+                "Has anyone shipped",
+                "What's the status of",
+                "When will I get",
+                "Can you track",
+            ],
+            [
+                "my parcel?",
+                "my order?",
+                "the package?",
+                "my delivery?",
+                "the item?",
+                "my shipment?",
+            ],
+        )
+    ]
+    states = refund + other
+    d = Decider(backend)
+    d.fit_head(states, q, [True] * len(refund) + [False] * len(other))
+    probe = ["I want my money back.", "Track my order please."]
+    res = d.decide_batch(probe, [q], "L2")
+    assert all(r["refund"].level == "L2" for r in res)
+    assert res[0]["refund"].p_yes > res[1]["refund"].p_yes  # refund vs tracking
+    d.save(tmp_path / "calib")
+    loaded = Decider.load(tmp_path / "calib", backend)
+    assert [r["refund"].probs for r in loaded.decide_batch(probe, [q], "L2")] == [
+        r["refund"].probs for r in res
+    ]

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -20,12 +21,17 @@ from brier.calibrate.temperature import MIN_ITEMS, apply_temperature, fit_temper
 from brier.debias import apply_prior, fit_prior, l0_logprobs
 from brier.decision import Decision, Level, QuestionType
 from brier.errors import (
+    ArtifactError,
     BrierError,
     InputTooLargeError,
     InsufficientDataError,
     NotFittedError,
     QuestionError,
 )
+from brier.heads._features import IntArray
+from brier.heads.fitted import L2Head
+from brier.heads.select import default_layers, select_head
+from brier.prompts import render
 from brier.questions import Choice, Noul, Question, Score, validate_questions
 from brier.readout import raw_logprobs
 
@@ -72,6 +78,7 @@ class Decider:
         # Keyed by the whole question (text, options, name), never by name alone.
         self._priors: dict[Question, FloatArray] = {}
         self._temperatures: dict[Question, float] = {}
+        self._heads: dict[Question, L2Head] = {}
 
     def save(self, path: str | Path) -> None:
         """Save fitted calibration (priors, temperatures, ``prior_strength``), never weights.
@@ -86,9 +93,10 @@ class Decider:
         ArtifactError
             If ``path`` is a file or a non-empty directory.
         """
-        questions = list(self._priors) + [q for q in self._temperatures if q not in self._priors]
+        questions = list(dict.fromkeys([*self._priors, *self._temperatures, *self._heads]))
         calibrations = tuple(
-            Calibration(q, self._priors.get(q), self._temperatures.get(q)) for q in questions
+            Calibration(q, self._priors.get(q), self._temperatures.get(q), self._heads.get(q))
+            for q in questions
         )
         artifact = Artifact(
             self.backend.model_id, self.backend.revision, self.prior_strength, calibrations
@@ -144,6 +152,13 @@ class Decider:
                 decider._priors[c.question] = c.prior
             if c.temperature is not None:
                 decider._temperatures[c.question] = c.temperature
+            if c.head is not None:
+                if c.head.layer >= backend.num_layers:
+                    raise ArtifactError(
+                        f"head layer {c.head.layer} does not exist in a "
+                        f"{backend.num_layers}-layer model"
+                    )
+                decider._heads[c.question] = c.head
         return decider
 
     def decide(
@@ -183,7 +198,9 @@ class Decider:
         if level not in _LEVELS:
             raise BrierError(f"unknown level {level!r}")
         if level == "L2":
-            raise NotFittedError("level L2 has not been fitted")
+            missing = [q.name for q in questions if q not in self._heads]
+            if missing:
+                raise NotFittedError(f"no L2 head fitted for {missing}")
         if level == "L1":
             missing = [q.name for q in questions if q not in self._temperatures]
             if missing:
@@ -245,16 +262,74 @@ class Decider:
             If a label does not match the question type or the counts differ.
         """
         states = self._check_states(states)
-        if not isinstance(question, (Choice, Noul, Score)):
-            raise QuestionError("question must be a Choice, Noul or Score instance")
-        labels = list(labels)
-        if len(labels) != len(states):
-            raise QuestionError(f"{len(labels)} labels for {len(states)} states")
-        y = np.array([_label_index(question, label) for label in labels], dtype=np.int64)
+        y = _label_indices(question, labels, len(states))
         if len(states) < MIN_ITEMS:
             raise InsufficientDataError(f"need at least {MIN_ITEMS} labelled states")
         logp, _ = self._logprobs(states, question, "L0")
         self._temperatures[question] = fit_temperature(logp, y)
+
+    def fit_head(
+        self,
+        states: Sequence[str],
+        question: Question,
+        labels: Sequence[object],
+        layers: Sequence[int] | None = None,
+    ) -> None:
+        """Fit the L2 hidden-state head of one question (METHODS.md, L2).
+
+        Reads the hidden state at the last prompt token for each candidate layer, selects
+        layer, solver and alpha by stratified 5-fold out-of-fold NLL, refits on all labels and
+        fits the L2 temperature on the out-of-fold scores.
+
+        Parameters
+        ----------
+        states : Sequence[str]
+            Labelled states: at least 60, and at least 5 per answer.
+        question : Choice, Noul or Score
+            The question (prompt rendered without rotation; Score with digit labels).
+        labels : Sequence
+            One answer per state, typed like :attr:`Decision.answer`.
+        layers : Sequence[int] or None
+            Candidate blocks; default every 2nd block from 40 % to 90 % depth.
+
+        Raises
+        ------
+        InsufficientDataError
+            With too few labels overall or for some answer.
+        QuestionError, BrierError
+            On malformed labels or layers.
+
+        Warns
+        -----
+        UserWarning
+            If the L2 temperature hit its lower search bound (tiny out-of-fold score
+            gaps): the head may be overconfident.
+        """
+        states = self._check_states(states)
+        y = _label_indices(question, labels, len(states))
+        n_layers = self.backend.num_layers
+        cand = default_layers(n_layers) if layers is None else list(layers)
+        if (
+            not cand
+            or len(set(cand)) != len(cand)
+            or not all(
+                isinstance(b, int) and not isinstance(b, bool) and 0 <= b < n_layers for b in cand
+            )
+        ):
+            raise BrierError(f"layers must be distinct ints in [0, {n_layers})")
+        prompts = [render(s, question) for s in states]
+        hidden = self.backend.hidden_states(prompts, cand)
+        head = L2Head.from_selection(select_head(hidden, cand, y, len(_answer_keys(question))))
+        # Lower bound: T could not sharpen enough, risk of overconfidence. (Upper bound means
+        # ~uniform predictions: an uninformative but honest head, so no warning.)
+        if head.temperature_at_bound and head.temperature < 1.0:
+            warnings.warn(
+                f"L2 temperature for {question.name!r} hit its lower search bound, "
+                "so the head may be overconfident",
+                UserWarning,
+                stacklevel=2,
+            )
+        self._heads[question] = head
 
     def _logprobs(
         self, states: list[str], q: Question, level: Level
@@ -263,6 +338,13 @@ class Decider:
             "model_id": self.backend.model_id,
             "revision": self.backend.revision,
         }
+        if level == "L2":
+            head = self._heads[q]
+            hidden = self.backend.hidden_states([render(s, q) for s in states], [head.layer])
+            meta.update(
+                n_forward=1, layer=head.layer, solver=head.solver, temperature=head.temperature
+            )
+            return head.log_probs(hidden[:, 0]), meta
         if level == "raw":
             meta["n_forward"] = 1
             return raw_logprobs(self.backend, states, q), meta
@@ -331,3 +413,13 @@ def _label_index(q: Question, label: object) -> int:
     ):
         raise QuestionError(f"Score labels must be ints in 1..{q.levels}, got {label!r}")
     return int(label) - 1
+
+
+def _label_indices(question: Question, labels: Sequence[object], n_states: int) -> IntArray:
+    """Validate and convert labels typed like ``Decision.answer`` to answer indices."""
+    if not isinstance(question, (Choice, Noul, Score)):
+        raise QuestionError("question must be a Choice, Noul or Score instance")
+    items = list(labels)
+    if len(items) != n_states:
+        raise QuestionError(f"{len(items)} labels for {n_states} states")
+    return np.array([_label_index(question, label) for label in items], dtype=np.int64)
