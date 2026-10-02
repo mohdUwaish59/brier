@@ -51,9 +51,10 @@ Tick `[x]` when the acceptance criteria are met and all gates pass.
 - [x] **M5.2b** `Decider.fit_head(states, question, labels, layers=None)` and `level="L2"`; store the selected head (layer, solver, alpha, arrays, T, OOF metrics) in artifacts (schema_version 2, ADR first).
 - [x] **M5.3** Feature caching in the benchmark (compute hidden states once per model/task).
 - [x] **M5.4** Benchmark L2 label curve (100/200/300 labels: L2 needs ≥ 5 per class, i.e. ≥ 100 on banking20's 20 classes) on Qwen3-1.7B and 4B. *Done on Qwen3-1.7B (`docs/results.md`); the 4B run is optional and not yet done.*
-- [ ] **M5.5** Docs: README quickstart, API reference (mkdocs or pdoc), `docs/results.md`. *Docs done (README, `docs/related_work.md`, pdoc); the 0.1.0 tag moves to the end of M6.*
+- [x] **M5.5** Docs: README quickstart, API reference (mkdocs or pdoc), `docs/results.md`. *Docs done (README, `docs/related_work.md`, pdoc); the 0.1.0 tag moves to the end of M6.*
 
 ## M6 — Any LLM: conformance and breadth → **release 0.1.0**
+*Released as 0.1.0 on 2026-10-03 (PyPI, tag `v0.1.0`).*
 Goal: a user can point brier at their model and know, before calibrating, whether and how it
 works; the supported-families table is backed by tests and one cross-family run.
 - [x] **M6.1** `brier check <model-id>` (also `python -m brier check`): loads the model and reports
