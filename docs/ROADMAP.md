@@ -77,4 +77,6 @@ works; the supported-families table is backed by tests and one cross-family run.
 - One state, many questions: shared-prefix KV reuse.
 - Ordinal (cumulative-logit) heads for Score.
 - More than 26 options (shortlist + rotated comparison).
+- Reasoning templates that always open a thinking block (DeepSeek-R1-Distill): close it
+  before the answer prefix (ADR-0004 amendment).
 - vLLM backend.

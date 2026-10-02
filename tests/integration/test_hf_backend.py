@@ -170,11 +170,17 @@ def test_score_works_with_digits_or_letter_fallback(backend) -> None:  # type: i
     lp = raw_logprobs(backend, ["Server is down, all customers affected!"], q)
     assert lp.shape == (1, 5)
     np.testing.assert_allclose(np.exp(lp).sum(), 1.0)
-    # levels=10 needs "10", never a single token after "Answer:" -> always letters
-    assert resolve_labels(backend, Score("q", levels=10, name="s"))[0] is True
+    # levels=10 needs "10": letters unless every digit label 1..10 is a single token
+    # (true for OLMoE's tokenizer, not for the others tested).
+    try:
+        backend.label_token_ids([str(i) for i in range(1, 11)])
+        ten_ok = True
+    except TokenizationError:
+        ten_ok = False
+    assert resolve_labels(backend, Score("q", levels=10, name="s"))[0] is (not ten_ok)
 
 
-@pytest.mark.parametrize("labs", [["10"], ["A", "A"], ["Absolutely-not-a-token"]])
+@pytest.mark.parametrize("labs", [["9876543210"], ["A", "A"], ["Absolutely-not-a-token"]])
 def test_label_token_ids_strict(backend, labs) -> None:  # type: ignore[no-untyped-def]
     with pytest.raises(TokenizationError):
         backend.label_token_ids(labs)
@@ -191,11 +197,11 @@ def test_hidden_states_match_full_forward(backend) -> None:  # type: ignore[no-u
     assert h.dtype == np.float32
     # Reference: unbatched full forward, residual stream after block b = hidden_states[b + 1].
     for i, p in enumerate(prompts):
-        ids = torch.tensor([backend.encode(p)])
+        ids = torch.tensor([backend.encode(p)], device=backend.model.device)
         with torch.inference_mode():
             out = backend.model(input_ids=ids, output_hidden_states=True)
         for j, b in enumerate(layers):
-            ref = out.hidden_states[b + 1][0, -1].float().numpy()
+            ref = out.hidden_states[b + 1][0, -1].float().cpu().numpy()
             np.testing.assert_allclose(h[i, j], ref, atol=1e-3, rtol=1e-3)
 
 
