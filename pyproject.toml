@@ -41,6 +41,7 @@ dev = [
   "mypy>=1.11",
   "pre-commit>=3.7",
   "pip-audit>=2.7",
+  "pdoc>=14",  # API reference from docstrings (README, M5.5)
 ]
 
 [tool.hatch.build.targets.wheel]

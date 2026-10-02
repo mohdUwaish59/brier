@@ -21,3 +21,4 @@ cache/
 *.safetensors
 *.bin
 *.pt
+site/
