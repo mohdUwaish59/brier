@@ -84,9 +84,9 @@ def fit_temperature(
         Search range for ``t = log T``; default ``(-3, 3)`` (L1). L2 head scores live on
         other scales and use a wider range (METHODS.md, L2).
     smoothing : {"none", "platt"}
-        ``"platt"`` fits against smoothed targets (Platt 1999, generalised to K classes):
-        ``(n_c + 1) / (n_c + K)`` for an item's class ``c`` and ``1 / (n_c + K)`` for every
-        other class, where ``n_c`` counts class ``c``. On separable scores this keeps ``T``
+        ``"platt"`` fits against Platt (1999) targets taken one-vs-rest (see
+        :func:`platt_targets`): ``(n_c + 1) / (n_c + 2)`` for an item's class ``c``, the rest
+        spread evenly, independent of K. On separable scores this keeps ``T``
         finite instead of driving it to the bound (used by L2). ``"none"``: plain NLL (L1).
 
     Returns
@@ -113,10 +113,7 @@ def fit_temperature(
     lp, y = _check(logp, labels)
     rows = np.arange(len(y))
     if smoothing == "platt":
-        k = lp.shape[1]
-        n_c = np.bincount(y, minlength=k)[y].astype(np.float64)  # count of each item's class
-        targets = np.repeat((1.0 / (n_c + k))[:, None], k, axis=1)
-        targets[rows, y] = (n_c + 1.0) / (n_c + k)
+        targets = platt_targets(y, lp.shape[1])
 
         def nll(t: float) -> float:
             return float(-np.mean(np.sum(targets * norm(lp / math.exp(t)), axis=1)))
@@ -143,3 +140,21 @@ def fit_temperature(
     candidates = [(nll(mid), mid), (nll(lo), lo), (nll(hi), hi)]
     best_t = min(candidates, key=lambda c: c[0])[1]
     return math.exp(best_t)
+
+
+def platt_targets(labels: npt.ArrayLike, n_classes: int) -> FloatArray:
+    """Platt (1999) targets taken one-vs-rest, ``(N, K)``.
+
+    An item of class ``c`` (``n_c`` items in that class) gets ``(n_c + 1) / (n_c + 2)`` on its
+    class and the remaining ``1 / (n_c + 2)`` spread evenly over the other ``K - 1`` classes.
+    For ``K = 2`` this is exactly Platt's ``(N+ + 1) / (N+ + 2)`` and ``1 / (N- + 2)``; unlike
+    adding a pseudo-count per class, the cap does not shrink as ``K`` grows.
+    """
+    y = np.asarray(labels)
+    if n_classes < 2:
+        raise BrierError("platt_targets needs n_classes >= 2")
+    n_c = np.bincount(y, minlength=n_classes)[y].astype(np.float64)
+    rest = 1.0 / (n_c + 2.0)
+    targets: FloatArray = np.repeat((rest / (n_classes - 1))[:, None], n_classes, axis=1)
+    targets[np.arange(len(y)), y] = 1.0 - rest
+    return targets
