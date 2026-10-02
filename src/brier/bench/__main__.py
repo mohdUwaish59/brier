@@ -11,7 +11,7 @@ from typing import Any
 
 from brier.backends.base import Backend
 from brier.bench.run import check_levels, run_task
-from brier.bench.tasks import TASKS, Task, load_task
+from brier.bench.tasks import TASKS, Task, default_cache_dir, load_task
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -30,6 +30,12 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--dtype", default=None, choices=("float32", "bfloat16", "float16"))
     run.add_argument("--device", default=None)
     run.add_argument("--n-resamples", type=int, default=1000)
+    run.add_argument("--l2-budgets", default="100,200,300", help="labels per L2 head")
+    run.add_argument(
+        "--cache-dir",
+        default=None,
+        help="hidden-state cache for L2 (default: <BRIER_CACHE_DIR or ~/.cache/brier>/features)",
+    )
     return parser
 
 
@@ -85,6 +91,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         limit=args.limit,
         n_resamples=args.n_resamples,
         git_commit=_git_commit(),
+        l2_budgets=[int(b) for b in args.l2_budgets.split(",") if b.strip()],
+        cache_dir=Path(args.cache_dir) if args.cache_dir else default_cache_dir() / "features",
     )
     for level, metrics in summary["levels"].items():
         acc, ece_, flip = metrics["accuracy"][0], metrics["ece"][0], metrics["flip_rate"][0]

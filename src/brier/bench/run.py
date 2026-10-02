@@ -20,10 +20,13 @@ import numpy as np
 from brier import Decider, __version__
 from brier._math import FloatArray
 from brier.backends.base import Backend
+from brier.bench.features import cached_hidden_states, stratified_budget
 from brier.bench.tasks import Task
 from brier.calibrate.temperature import apply_temperature, fit_temperature
 from brier.decision import Level
 from brier.errors import BrierError
+from brier.heads.fitted import L2Head
+from brier.heads.select import default_layers, select_head
 from brier.metrics import (
     Metric,
     accuracy,
@@ -36,10 +39,12 @@ from brier.metrics import (
     nll,
     paired_bootstrap_ci,
 )
+from brier.prompts import render
 from brier.questions import Choice
 
 SCHEMA_VERSION = 1
-SUPPORTED_LEVELS: tuple[Level, ...] = ("raw", "L0", "L1")
+SUPPORTED_LEVELS: tuple[Level, ...] = ("raw", "L0", "L1", "L2")
+DEFAULT_L2_BUDGETS = (100, 200, 300)
 _LOG_FLOOR = 1e-300  # probabilities that underflowed to 0, so log stays finite
 COVERAGE_ALPHA = 0.05
 _METRICS: dict[str, Metric] = {
@@ -54,7 +59,7 @@ _METRICS: dict[str, Metric] = {
 
 
 def check_levels(levels: Sequence[str]) -> list[Level]:
-    """Validate requested levels (``raw``, ``L0``, ``L1``; L1 is a transform of L0)."""
+    """Validate requested levels (``raw``, ``L0``, ``L1``, ``L2``; L1 is a transform of L0)."""
     out = list(levels)
     if not out or len(set(out)) != len(out) or not set(out) <= set(SUPPORTED_LEVELS):
         raise BrierError(f"levels must be distinct values from {SUPPORTED_LEVELS}")
@@ -72,6 +77,8 @@ def run_task(
     limit: int | None = None,
     n_resamples: int = 1000,
     git_commit: str | None = None,
+    l2_budgets: Sequence[int] = DEFAULT_L2_BUDGETS,
+    cache_dir: str | Path | None = None,
 ) -> dict[str, Any]:
     """Evaluate ``levels`` on ``task`` and write ``<task>_<model>_seed<seed>.{json,npz}``.
 
@@ -79,6 +86,9 @@ def run_task(
     keeps the finished levels; the L0 prior is fitted only when L0 starts. L1 fits a
     temperature on L0 predictions for the calibration split and applies it to the stored
     test-set L0 probabilities (what ``Decider`` does), so it only adds the calibration items.
+    L2 fits one head per label budget (a stratified subsample of the calibration split) on
+    hidden states computed once and cached, and scores the test split with it; ``levels.L2``
+    is the largest budget and ``l2_curve`` holds every budget.
     Flip rate re-runs each level with the option list reversed (doubling its cost).
 
     Parameters
@@ -88,7 +98,7 @@ def run_task(
     task : Task
         See :mod:`brier.bench.tasks`.
     levels : Sequence[str]
-        Subset of ``("raw", "L0", "L1")``; L1 requires L0.
+        Subset of ``("raw", "L0", "L1", "L2")``; L1 requires L0.
     out_dir : str or Path
         Output directory (created if needed).
     limit : int or None
@@ -97,6 +107,10 @@ def run_task(
         Bootstrap resamples per CI.
     git_commit : str or None
         Recorded in the result file.
+    l2_budgets : Sequence[int]
+        Labelled calibration items per L2 head (default 100, 200, 300).
+    cache_dir : str, Path or None
+        Hidden-state cache directory for L2 (``None``: no caching).
 
     Returns
     -------
@@ -104,6 +118,10 @@ def run_task(
         The result summary written to JSON.
     """
     lvls = check_levels(levels)
+    budgets = sorted({int(b) for b in l2_budgets})
+    n_cal = len(task.calib_states[:limit])
+    if "L2" in lvls and (not budgets or budgets[0] < 1 or budgets[-1] > n_cal):
+        raise BrierError(f"l2_budgets must be non-empty ints in [1, {n_cal}]")
     q = task.question
     q_rev = Choice(q.text, list(reversed(q.options)), name=q.name)
     states = list(task.test_states[:limit])
@@ -145,17 +163,25 @@ def run_task(
             decider.fit_prior(pool, [q_rev])  # same name, so a separate call
         if level == "L1":
             p, p_rev, summary["calibration"]["L1"] = _l1(decider, task, q, q_rev, arrays, limit)
+        elif level == "L2":
+            p, p_rev, summary["l2_curve"] = _l2(
+                backend, task, q, q_rev, labels, limit, budgets, cache_dir, n_resamples
+            )
         else:
             p = _predict(decider, states, q, level)
             p_rev = _predict(decider, states, q_rev, level, order=q.options)
         summary["timing"]["wall_seconds"][level] = round(time.perf_counter() - start, 3)
         summary["timing"]["forward_passes_per_decision"][level] = (
-            1 if level == "raw" else len(q.options)
+            1 if level in ("raw", "L2") else len(q.options)
         )
         arrays[f"{level}_probs"], arrays[f"{level}_probs_reversed"] = p, p_rev
-        summary["levels"][level] = _metrics(p, p_rev, labels, n_resamples)
-        for ref in ("raw", "L0"):
-            if ref != level and ref in summary["levels"] and level in ("L0", "L1"):
+        summary["levels"][level] = (
+            summary["l2_curve"][str(budgets[-1])]["metrics"]
+            if level == "L2"
+            else _metrics(p, p_rev, labels, n_resamples)
+        )
+        for ref in ("raw", "L0", "L1"):
+            if ref != level and ref in summary["levels"] and level != "raw":
                 base = (arrays[f"{ref}_probs"], arrays[f"{ref}_probs_reversed"])
                 summary["comparisons"][f"{level}_minus_{ref}"] = _paired(
                     (p, p_rev), base, labels, n_resamples
@@ -184,6 +210,63 @@ def _l1(
         apply_temperature(_log(arrays["L0_probs_reversed"]), temps["temperature_reversed"])
     )
     return p, p_rev, {**temps, "n_calib": len(cal_states)}
+
+
+def _l2(
+    backend: Backend,
+    task: Task,
+    q: Choice,
+    q_rev: Choice,
+    labels: np.ndarray[Any, Any],
+    limit: int | None,
+    budgets: list[int],
+    cache_dir: str | Path | None,
+    n_resamples: int,
+) -> tuple[FloatArray, FloatArray, dict[str, Any]]:
+    """Fit an L2 head per budget (both option orders) on cached hidden states."""
+    layers = default_layers(backend.num_layers)
+    cal_y = np.asarray(task.calib_labels[:limit], dtype=np.int64)
+    n_classes = len(q.options)
+
+    def features(states: Sequence[str], question: Choice) -> np.ndarray[Any, Any]:
+        prompts = [render(s, question) for s in states]
+        return cached_hidden_states(backend, prompts, layers, cache_dir)
+
+    cal = {
+        "f": features(task.calib_states[:limit], q),
+        "r": features(task.calib_states[:limit], q_rev),
+    }
+    test = {
+        "f": features(task.test_states[:limit], q),
+        "r": features(task.test_states[:limit], q_rev),
+    }
+    curve: dict[str, Any] = {}
+    p: FloatArray = np.empty((0, n_classes))
+    p_rev: FloatArray = np.empty((0, n_classes))
+    for budget in budgets:
+        idx = stratified_budget(cal_y, n_classes, budget, seed=task.seed)
+        probs: dict[str, FloatArray] = {}
+        heads = {}
+        for order in ("f", "r"):  # labels index q.options in both prompt orders
+            head = L2Head.from_selection(
+                select_head(cal[order][idx], layers, cal_y[idx], n_classes)
+            )
+            heads[order] = head
+            probs[order] = np.exp(head.log_probs(test[order][:, layers.index(head.layer)]))
+        p, p_rev = probs["f"], probs["r"]
+        h = heads["f"]
+        curve[str(budget)] = {
+            "n_labels": budget,
+            "layer": h.layer,
+            "solver": h.solver,
+            "alpha": h.alpha,
+            "temperature": h.temperature,
+            "temperature_at_bound": h.temperature_at_bound,
+            "oof_nll": h.oof_nll,
+            "oof_accuracy": h.oof_accuracy,
+            "metrics": _metrics(p, p_rev, labels, n_resamples),
+        }
+    return p, p_rev, curve
 
 
 def _log(p: FloatArray) -> FloatArray:

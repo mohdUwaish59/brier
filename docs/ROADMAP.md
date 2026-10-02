@@ -49,8 +49,8 @@ Tick `[x]` when the acceptance criteria are met and all gates pass.
 - [x] **M5.1** `heads/ridge.py` (dual + primal), `heads/lda.py` (Ledoit–Wolf + Woodbury). Tests against a naive reference implementation on small random data.
 - [x] **M5.2** `heads/select.py` stratified k-fold OOF selection over layers × α × solver, then temperature.
 - [x] **M5.2b** `Decider.fit_head(states, question, labels, layers=None)` and `level="L2"`; store the selected head (layer, solver, alpha, arrays, T, OOF metrics) in artifacts (schema_version 2, ADR first).
-- [ ] **M5.3** Feature caching in the benchmark (compute hidden states once per model/task).
-- [ ] **M5.4** Benchmark L2 label curve (20/50/100/300 labels) on Qwen3-1.7B and 4B.
+- [x] **M5.3** Feature caching in the benchmark (compute hidden states once per model/task).
+- [ ] **M5.4** Benchmark L2 label curve (100/200/300 labels: L2 needs ≥ 5 per class, i.e. ≥ 100 on banking20's 20 classes) on Qwen3-1.7B and 4B.
 - [ ] **M5.5** Docs: README quickstart, API reference (mkdocs or pdoc), `docs/results.md`. Tag 0.1.0.
 
 ## Later (each needs an ADR first)
