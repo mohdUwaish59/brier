@@ -60,6 +60,7 @@ class FakeBackend:
     num_layers: int = 8
     model_id: str = "fake"
     revision: str | None = None
+    dtype: str | None = None
 
     def __post_init__(self) -> None:
         values = [*self.position_bias, *self.label_prior.values()]

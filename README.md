@@ -68,7 +68,8 @@ d.save("calibration/")  # JSON + .npz, never model weights
 d = Decider.load("calibration/", HFBackend("Qwen/Qwen3-1.7B", revision="<commit-sha>"))
 ```
 
-`load` refuses a calibration made for another model, revision or prompt template. Pin
+`load` refuses a calibration made for another model, revision, precision (`dtype`) or prompt
+template. Pin
 `revision` to a commit SHA: a model name alone does not pin weights.
 
 Questions:

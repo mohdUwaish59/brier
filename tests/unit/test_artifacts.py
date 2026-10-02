@@ -85,8 +85,8 @@ def test_round_trip(tmp_path: Path) -> None:
 def test_json_records_provenance(tmp_path: Path) -> None:
     d = _save(tmp_path)
     j = json.loads((d / JSON_FILE).read_text(encoding="utf-8"))
-    assert j["schema_version"] == SCHEMA_VERSION == 2  # ADR-0006
-    assert j["model"] == {"id": MODEL, "revision": REV}
+    assert j["schema_version"] == SCHEMA_VERSION == 3  # ADR-0007
+    assert j["model"] == {"id": MODEL, "revision": REV, "dtype": None}
     assert j["template_hash"] == prompts.template_hash()
     assert j["arrays_sha256"] == hashlib.sha256((d / ARRAYS_FILE).read_bytes()).hexdigest()
     assert isinstance(j["brier_version"], str)
@@ -133,7 +133,12 @@ def test_tampered_npz_fails_checksum(tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     "edit",
     [
-        lambda j: j.update(schema_version=3),  # 1 and 2 are readable
+        lambda j: j.update(schema_version=4),  # 1, 2 and 3 are readable
+        lambda j: j["model"].pop("dtype"),  # version 3 requires it
+        lambda j: j["model"].update(dtype=16),
+        lambda j: j["model"].update(dtype=""),
+        lambda j: j["model"].update(dtype="BF16; rm -rf"),
+        lambda j: j["model"].update(dtype="x" * 33),
         lambda j: j.pop("template_hash"),
         lambda j: j.update(unexpected="x"),
         lambda j: j.update(prior_strength=1.5),
@@ -150,6 +155,11 @@ def test_tampered_npz_fails_checksum(tmp_path: Path) -> None:
     ],
     ids=[
         "schema-version",
+        "dtype-missing",
+        "dtype-type",
+        "dtype-empty",
+        "dtype-chars",
+        "dtype-long",
         "missing-key",
         "unknown-key",
         "prior-strength-range",
@@ -353,3 +363,32 @@ def test_file_growing_after_size_check_is_rejected(tmp_path: Path, monkeypatch) 
     monkeypatch.setattr(artifacts.os, "fstat", lambda fd: lie)
     with pytest.raises(ArtifactError, match="size"):
         _load(d, max_bytes=5_000)
+
+
+def test_dtype_round_trips_and_binds(tmp_path: Path) -> None:
+    a = _artifact()
+    d = tmp_path / "c"
+    save_artifact(
+        d, Artifact(a.model_id, a.revision, a.prior_strength, a.calibrations, dtype="bfloat16")
+    )
+    j = json.loads((d / JSON_FILE).read_text(encoding="utf-8"))
+    assert j["model"]["dtype"] == "bfloat16"
+    assert _load(d, dtype="bfloat16").dtype == "bfloat16"
+    for other in ("float32", None):
+        with pytest.raises(ArtifactError, match="dtype"):
+            _load(d, dtype=other)
+
+
+@pytest.mark.parametrize("version", [1, 2])
+def test_older_versions_skip_the_dtype_check(tmp_path: Path, version: int) -> None:
+    d = _save(tmp_path)
+    _edit_json(d, lambda j: (j.update(schema_version=version), j["model"].pop("dtype")))
+    if version == 1:
+        _edit_json(d, lambda j: [q.pop("head") for q in j["questions"]])
+    assert _load(d, dtype="float16").dtype is None  # precision unknown: loads on any dtype
+
+
+def test_artifact_rejects_bad_dtype() -> None:
+    a = _artifact()
+    with pytest.raises(ArtifactError, match="dtype"):
+        Artifact(a.model_id, a.revision, a.prior_strength, a.calibrations, dtype="Float 32")

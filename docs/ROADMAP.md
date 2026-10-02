@@ -62,8 +62,8 @@ works; the supported-families table is backed by tests and one cross-family run.
   model supports. `--json` for machines; exit code 1 if a required check fails.
   *Accept:* unit tests with `FakeBackend` (passing and failing backends, CLI, JSON); runs on a
   real model.
-- [ ] **M6.2** Calibration files record the backend dtype; `load` refuses a dtype mismatch
-  (ADR-0006 amendment first).
+- [x] **M6.2** Calibration files record the backend dtype; `load` refuses a dtype mismatch
+  (ADR-0007).
 - [ ] **M6.3** Wider matrix: Llama 3.2, Phi, Mistral and one MoE in the integration suite /
   `docs/COMPATIBILITY.md`; a scheduled CI job runs the integration suite on the smallest model
   with the latest dependency versions; a CI job tests the declared minimum versions; the README

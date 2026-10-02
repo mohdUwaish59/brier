@@ -195,10 +195,10 @@ def test_round_trip_l2_decisions_identical(tmp_path: Path) -> None:
         assert a == b
 
 
-def test_schema_version_is_2_and_head_json(tmp_path: Path) -> None:
+def test_schema_version_is_3_and_head_json(tmp_path: Path) -> None:
     _fitted().save(tmp_path / "c")
     j = json.loads((tmp_path / "c" / JSON_FILE).read_text(encoding="utf-8"))
-    assert j["schema_version"] == SCHEMA_VERSION == 2
+    assert j["schema_version"] == SCHEMA_VERSION == 3
     head = j["questions"][0]["head"]
     assert set(head) == {
         "layer",
@@ -224,6 +224,7 @@ def test_version_1_artifact_still_loads(tmp_path: Path) -> None:
     p = tmp_path / "c" / JSON_FILE
     j = json.loads(p.read_text(encoding="utf-8"))
     j["schema_version"] = 1
+    j["model"].pop("dtype")  # version 1 had no dtype (ADR-0007)
     for q in j["questions"]:
         q.pop("head")
     p.write_text(json.dumps(j), encoding="utf-8")
@@ -236,6 +237,7 @@ def test_version_1_with_head_key_rejected(tmp_path: Path) -> None:
     p = tmp_path / "c" / JSON_FILE
     j = json.loads(p.read_text(encoding="utf-8"))
     j["schema_version"] = 1
+    j["model"].pop("dtype")
     p.write_text(json.dumps(j), encoding="utf-8")
     with pytest.raises(ArtifactError):
         Decider.load(tmp_path / "c", _backend())

@@ -44,6 +44,14 @@ def _check_limit(value: object, what: str) -> int:
     return value
 
 
+def _backend_dtype(backend: Backend) -> str | None:
+    """Return the backend's precision string, or None if it has none (ADR-0007)."""
+    dtype = getattr(backend, "dtype", None)
+    if dtype is not None and not isinstance(dtype, str):
+        raise BrierError(f"backend.dtype must be a string or None, not {type(dtype).__name__}")
+    return dtype
+
+
 class Decider:
     """Answer typed questions about states with calibrated probabilities.
 
@@ -99,7 +107,11 @@ class Decider:
             for q in questions
         )
         artifact = Artifact(
-            self.backend.model_id, self.backend.revision, self.prior_strength, calibrations
+            self.backend.model_id,
+            self.backend.revision,
+            self.prior_strength,
+            calibrations,
+            _backend_dtype(self.backend),
         )
         save_artifact(path, artifact)
 
@@ -116,11 +128,11 @@ class Decider:
     ) -> Decider:
         """Create a Decider from a saved calibration artifact.
 
-        The artifact must have been fitted on ``backend``'s exact model id and revision and
-        with the current prompt templates; it is validated as untrusted input
-        (THREAT_MODEL T2). ``prior_strength`` comes from the artifact. With
-        ``revision=None`` the match is by model name only and does not pin weights; pin a
-        commit SHA. The checksum guards integrity, not authorship.
+        The artifact must have been fitted on ``backend``'s exact model id, revision and
+        precision (``backend.dtype``, ADR-0007) and with the current prompt templates; it
+        is validated as untrusted input (THREAT_MODEL T2). ``prior_strength`` comes from the
+        artifact. With ``revision=None`` the match is by model name only and does not pin
+        weights; pin a commit SHA. The checksum guards integrity, not authorship.
 
         Parameters
         ----------
@@ -138,7 +150,11 @@ class Decider:
             If the artifact is invalid or does not match the backend or templates.
         """
         artifact = load_artifact(
-            path, model_id=backend.model_id, revision=backend.revision, max_bytes=max_bytes
+            path,
+            model_id=backend.model_id,
+            revision=backend.revision,
+            dtype=_backend_dtype(backend),
+            max_bytes=max_bytes,
         )
         decider = cls(
             backend,

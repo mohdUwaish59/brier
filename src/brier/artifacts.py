@@ -16,6 +16,7 @@ import io
 import json
 import math
 import os
+import re
 import stat
 import zipfile
 from collections.abc import Callable
@@ -32,8 +33,9 @@ from brier.errors import ArtifactError, BrierError, QuestionError
 from brier.heads.fitted import MAX_HIDDEN, L2Head
 from brier.questions import Choice, Noul, Question, Score
 
-SCHEMA_VERSION = 2  # ADR-0006: adds L2 heads; version 1 still loads
-_READABLE_VERSIONS = (1, 2)
+SCHEMA_VERSION = 3  # ADR-0007: adds model.dtype; ADR-0006: L2 heads; 1 and 2 still load
+_READABLE_VERSIONS = (1, 2, 3)
+_DTYPE = re.compile(r"[a-z0-9_.+-]{1,32}")
 MAX_ARTIFACT_QUESTIONS = 1024  # bounds parsing work (each head is four npz members)
 JSON_FILE = "artifact.json"
 ARRAYS_FILE = "arrays.npz"
@@ -141,18 +143,24 @@ class Artifact:
         λ used when applying L0 priors.
     calibrations : tuple of Calibration
         One entry per distinct question.
+    dtype : str or None
+        The backend's precision (ADR-0007); ``None`` if the backend exposes none, or for
+        version-1/2 artifacts, which did not record it.
     """
 
     model_id: str
     revision: str | None
     prior_strength: float
     calibrations: tuple[Calibration, ...]
+    dtype: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.model_id, str) or not self.model_id:
             raise ArtifactError("model_id must be a non-empty string")
         if self.revision is not None and not isinstance(self.revision, str):
             raise ArtifactError("revision must be a string or None")
+        if self.dtype is not None and not _valid_dtype(self.dtype):
+            raise ArtifactError("dtype must be None or 1-32 characters from [a-z0-9_.+-]")
         lam = self.prior_strength
         if not _is_number(lam) or not 0 <= lam <= 1:
             raise ArtifactError("prior_strength must be a number in [0, 1]")
@@ -189,7 +197,7 @@ def save_artifact(path: str | Path, artifact: Artifact) -> None:
     doc = {
         "schema_version": SCHEMA_VERSION,
         "brier_version": __version__,
-        "model": {"id": artifact.model_id, "revision": artifact.revision},
+        "model": {"id": artifact.model_id, "revision": artifact.revision, "dtype": artifact.dtype},
         "template_hash": prompts.template_hash(),
         "prior_strength": float(artifact.prior_strength),
         "arrays_sha256": hashlib.sha256(data).hexdigest(),
@@ -210,6 +218,7 @@ def load_artifact(
     *,
     model_id: str,
     revision: str | None,
+    dtype: str | None = None,
     max_bytes: int = DEFAULT_MAX_BYTES,
 ) -> Artifact:
     """Load and fully validate an artifact for the given model.
@@ -220,6 +229,8 @@ def load_artifact(
         Artifact directory.
     model_id, revision : str, str or None
         The backend's model; the artifact must have been fitted on exactly this.
+    dtype : str or None
+        The backend's precision; must equal the recorded one (version 3 artifacts only).
     max_bytes : int
         Cap on each file and on the uncompressed npz contents (default 100 MB).
 
@@ -231,14 +242,16 @@ def load_artifact(
     if not isinstance(max_bytes, int) or isinstance(max_bytes, bool) or max_bytes <= 0:
         raise ArtifactError("max_bytes must be a positive int")
     try:
-        return _load(Path(path), model_id, revision, max_bytes)
+        return _load(Path(path), model_id, revision, dtype, max_bytes)
     except ArtifactError:
         raise
     except Exception as e:  # fail closed: hostile input must never escape as another type
         raise ArtifactError(f"artifact could not be loaded safely ({type(e).__name__})") from e
 
 
-def _load(d: Path, model_id: str, revision: str | None, max_bytes: int) -> Artifact:
+def _load(
+    d: Path, model_id: str, revision: str | None, dtype: str | None, max_bytes: int
+) -> Artifact:
     if not d.is_dir():
         raise ArtifactError(f"{d} is not a directory")
     raw_json = _read_capped(d / JSON_FILE, max_bytes)
@@ -247,7 +260,7 @@ def _load(d: Path, model_id: str, revision: str | None, max_bytes: int) -> Artif
         doc = json.loads(raw_json.decode("utf-8"))
     except (ValueError, RecursionError) as e:  # covers UnicodeDecodeError, JSONDecodeError
         raise ArtifactError(f"{JSON_FILE} is not valid JSON") from e
-    version = _check_header(doc, model_id, revision)
+    version = _check_header(doc, model_id, revision, dtype)
     if hashlib.sha256(raw_arrays).hexdigest() != doc["arrays_sha256"]:
         raise ArtifactError(f"{ARRAYS_FILE} does not match its recorded SHA-256")
     entries = doc["questions"]
@@ -279,7 +292,9 @@ def _load(d: Path, model_id: str, revision: str | None, max_bytes: int) -> Artif
         for i, (q, entry) in enumerate(zip(questions, entries, strict=True))
     )
     model = doc["model"]
-    return Artifact(model["id"], model["revision"], doc["prior_strength"], calibrations)
+    return Artifact(
+        model["id"], model["revision"], doc["prior_strength"], calibrations, model.get("dtype")
+    )
 
 
 def _read_capped(p: Path, max_bytes: int) -> bytes:
@@ -305,7 +320,11 @@ def _read_capped(p: Path, max_bytes: int) -> bytes:
     return data
 
 
-def _check_header(doc: Any, model_id: str, revision: str | None) -> int:
+def _valid_dtype(x: object) -> bool:
+    return isinstance(x, str) and _DTYPE.fullmatch(x) is not None
+
+
+def _check_header(doc: Any, model_id: str, revision: str | None, dtype: str | None) -> int:
     if not isinstance(doc, dict) or set(doc) != _TOP_KEYS:
         raise ArtifactError(f"{JSON_FILE} must have exactly the keys {sorted(_TOP_KEYS)}")
     version = doc["schema_version"]
@@ -314,13 +333,15 @@ def _check_header(doc: Any, model_id: str, revision: str | None) -> int:
             f"unsupported schema_version {version!r} (readable: {_READABLE_VERSIONS})"
         )
     model = doc["model"]
+    model_keys = {"id", "revision", "dtype"} if version >= 3 else {"id", "revision"}
     if (
         not isinstance(model, dict)
-        or set(model) != {"id", "revision"}
+        or set(model) != model_keys
         or not isinstance(model["id"], str)
         or not (model["revision"] is None or isinstance(model["revision"], str))
+        or not (model.get("dtype") is None or _valid_dtype(model["dtype"]))
     ):
-        raise ArtifactError("model must be {id: str, revision: str or null}")
+        raise ArtifactError(f"model must have exactly the keys {sorted(model_keys)}")
     for key in ("brier_version", "template_hash", "arrays_sha256"):
         if not isinstance(doc[key], str):
             raise ArtifactError(f"{key} must be a string")
@@ -332,6 +353,11 @@ def _check_header(doc: Any, model_id: str, revision: str | None) -> int:
     if model["revision"] != revision:
         raise ArtifactError(
             f"artifact was fitted on revision {model['revision']!r}, not {revision!r}"
+        )
+    if version >= 3 and model["dtype"] != dtype:
+        raise ArtifactError(
+            f"artifact was fitted with dtype {model['dtype']!r}, not {dtype!r} "
+            "(re-fit the calibration for this precision)"
         )
     if doc["template_hash"] != prompts.template_hash():
         raise ArtifactError("prompt template mismatch: the artifact was fitted with other prompts")
