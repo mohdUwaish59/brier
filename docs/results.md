@@ -72,3 +72,46 @@ Same model revision, data, split and hardware as M3.4; brier commit `3988cb7` (n
   changes the argmax. AURC improves slightly because confidence is the max probability of the
   rescaled distribution, which can reorder items.
 - **Reproducible:** raw and L0 match the M3.4 run to every digit on a fresh Colab machine.
+
+## banking20 — Qwen3-1.7B, L2 hidden-state head (M5.4)
+
+Same model revision, data and split as above; L2 heads per label budget, each budget a seeded
+class-balanced subsample of the 300-item calibration split; selection over layers
+(every 2nd block, 40–90 % depth) × ridge α × LDA by 5-fold out-of-fold NLL. brier commit
+`faa2cc9` (L2-only notebook `notebooks/m5_4b_l2_rerun.ipynb`), raw / L0 / L1 from the M4 run.
+
+| Metric | raw | L0 | L1 | **L2 (300 labels)** |
+|---|---|---|---|---|
+| Accuracy ↑ | 0.626 | 0.668 | 0.668 | **0.807** [0.793, 0.823] |
+| ECE (15 equal-mass bins) ↓ | 0.357 | 0.299 | 0.094 | **0.035** [0.028, 0.050] |
+| NLL ↓ | 6.541 | 3.845 | 1.204 | **0.727** [0.672, 0.781] |
+| Brier ↓ | 0.726 | 0.617 | 0.470 | **0.284** [0.264, 0.302] |
+| AURC ↓ | 0.196 | 0.146 | 0.139 | **0.065** [0.054, 0.077] |
+| Coverage at risk ≤ 5 % (in-sample) ↑ | 0.154 | 0.151 | 0.180 | **0.612** [0.541, 0.663] |
+| Flip rate ↓ | 0.364 | 0.201 | 0.201 | **0.192** [0.177, 0.207] |
+
+Label curve (L2 head chosen per budget):
+
+| Labels | Layer | Solver | α | T | Accuracy | ECE | NLL |
+|---|---|---|---|---|---|---|---|
+| 100 | 22 | ridge | 1000 | 0.107 | 0.730 [0.713, 0.747] | 0.063 [0.051, 0.079] | 0.978 [0.919, 1.034] |
+| 200 | 24 | ridge | 100 | 0.138 | 0.788 [0.773, 0.804] | 0.033 [0.031, 0.054] | 0.811 [0.759, 0.865] |
+| 300 | 22 | ridge | 100 | 0.128 | 0.807 [0.793, 0.823] | 0.035 [0.028, 0.050] | 0.727 [0.672, 0.781] |
+
+L2 costs one forward pass per decision (68 s for 2 × 2,903 prompts incl. feature extraction).
+
+### Reading
+
+- **L2 improves every metric at once.** With 300 labels accuracy rises from 0.668 to 0.807
+  (+13.9 points, paired CI [+12.1, +15.6] in the full M5.4 run, which used the same selected
+  head) while ECE falls to 0.035 and NLL to 0.727 — better calibrated than L1 at much higher
+  accuracy. 61 % of decisions can be automated at ≤ 5 % in-sample error (L1: 18 %).
+- **More labels help, with diminishing returns:** 100 → 200 → 300 labels gives accuracy
+  0.73 → 0.79 → 0.81 and ECE 0.063 → 0.033 → 0.035. Selection settles on ridge at blocks 22–24
+  of 28 (≈ 80–85 % depth).
+- **Calibration fix (M5.4b).** The first M5.4 run reached the same 0.807 accuracy but ECE 0.461:
+  the L2 temperature was fitted against smoothed targets that capped confidence near 0.46 with
+  20 classes. L2 now uses Platt targets for two classes and plain temperature scaling beyond
+  (METHODS.md, L2); the numbers above are from the fixed version.
+- **Flip rate barely moves** (0.20 → 0.19): L2 reads one prompt in the given option order, so it
+  does not average position bias out the way L0 does.
