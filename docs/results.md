@@ -114,3 +114,71 @@ L2 costs one forward pass per decision (68 s wall time for the whole L2 run on a
   (METHODS.md, L2); the numbers above are from the fixed version.
 - **Flip rate barely moves** (0.20 → 0.19): L2 reads one prompt in the given option order, so it
   does not average position bias out the way L0 does.
+
+
+## banking20 — six model families (M6.5)
+
+Same task, split, seed, prompts and labels as above (2,603 test items; L1 and L2 fitted on the
+300-item calibration split; 500 unlabelled items for the L0 prior); every model in bfloat16 on an
+A100 with a pinned revision. Qwen3-1.7B is the run above; the five others were run with
+`notebooks/m6_5_cross_family_benchmark.ipynb` at brier `355f90d`.
+
+**Point estimates only.** The other models' result files, with bootstrap CIs and NLL, were lost
+when the Colab runtime disconnected; the numbers below are the run's printed output, kept
+verbatim in `docs/benchmarks/m6_5_cross_family_log.txt`. With 2,603 test items the 95 % CIs
+on accuracy are about ±0.015 (see the Qwen3-1.7B tables). Mistral-7B-v0.3 did not finish and is
+not reported.
+
+Accuracy ↑
+
+| Model | raw | L0 | L1 | L2 (300 labels) |
+|---|---|---|---|---|
+| Qwen3-1.7B (chat) | 0.626 | 0.668 | 0.668 | 0.807 |
+| Falcon3-1B-**Base** (plain prompt) | 0.155 | 0.601 | 0.601 | 0.804 |
+| LFM2-1.2B (hybrid conv.) | 0.200 | 0.617 | 0.617 | 0.802 |
+| SmolLM3-3B | 0.660 | 0.746 | 0.746 | 0.834 |
+| Phi-4-mini (3.8B) | 0.711 | 0.786 | 0.786 | 0.859 |
+| OLMoE-1B-7B (MoE) | 0.257 | 0.686 | 0.686 | 0.819 |
+
+ECE ↓
+
+| Model | raw | L0 | L1 | L2 (300 labels) |
+|---|---|---|---|---|
+| Qwen3-1.7B (chat) | 0.357 | 0.299 | 0.094 | 0.035 |
+| Falcon3-1B-**Base** (plain prompt) | 0.119 | 0.519 | 0.162 | 0.072 |
+| LFM2-1.2B (hybrid conv.) | 0.336 | 0.280 | 0.064 | 0.036 |
+| SmolLM3-3B | 0.190 | 0.084 | 0.030 | 0.039 |
+| Phi-4-mini (3.8B) | 0.186 | 0.116 | 0.022 | 0.057 |
+| OLMoE-1B-7B (MoE) | 0.068 | 0.472 | 0.098 | 0.084 |
+
+Flip rate ↓
+
+| Model | raw | L0 | L1 | L2 (300 labels) |
+|---|---|---|---|---|
+| Qwen3-1.7B (chat) | 0.364 | 0.201 | 0.201 | 0.192 |
+| Falcon3-1B-**Base** (plain prompt) | 0.990 | 0.371 | 0.371 | 0.136 |
+| LFM2-1.2B (hybrid conv.) | 0.972 | 0.415 | 0.415 | 0.191 |
+| SmolLM3-3B | 0.279 | 0.123 | 0.123 | 0.162 |
+| Phi-4-mini (3.8B) | 0.275 | 0.099 | 0.099 | 0.117 |
+| OLMoE-1B-7B (MoE) | 0.945 | 0.316 | 0.316 | 0.193 |
+
+### Reading
+
+- **Zero labels, every family: L0 raises accuracy and cuts order flips.** The gains are largest
+  where the raw readout is near chance: Falcon3-1B-Base 0.155 → 0.601, LFM2 0.200 → 0.617,
+  OLMoE 0.257 → 0.686. Their raw flip rates of 0.95–0.99 show what went wrong: the raw answer
+  follows the option *position*, not the content. Rotating the options removes most of that.
+- **300 labels: L2 lands every model between 0.80 and 0.86 accuracy**, from raw accuracies that
+  range from 0.155 to 0.711. A 1B **base** model (no instruction tuning, plain-text prompt)
+  reaches 0.804, on par with the 1.7B chat model's 0.807.
+- **Calibration: L1 lowers ECE relative to L0 on every model** (to 0.022–0.162), and L2 reaches
+  0.035–0.084. On SmolLM3 and Phi-4-mini, L1 is better calibrated than L2 (0.030 vs 0.039,
+  0.022 vs 0.057) while L2 is more accurate: choose by what matters for your use.
+- **Low raw ECE can be misleading.** Falcon3-1B-Base and OLMoE have raw ECE of 0.119 and 0.068
+  at near-chance accuracy: they are unconfident *and* wrong, which ECE alone scores as well
+  calibrated. L0 makes them confident (ECE 0.519 and 0.472) and L1 brings that back down (0.162
+  and 0.098). Read ECE together with accuracy.
+- **L2 does not always flip less than L0**: on SmolLM3 and Phi-4-mini it flips slightly more
+  (0.162 vs 0.123, 0.117 vs 0.099). L2 reads one prompt in the given order and does not average
+  out position bias the way L0 does.
+- **Limits:** one task, one seed, point estimates without intervals for five of the six models.

@@ -69,8 +69,10 @@ works; the supported-families table is backed by tests and one cross-family run.
   with the latest dependency versions; a CI job tests the declared minimum versions; the README
   quickstart runs as a unit test.
 - [x] **M6.4** Base models without a chat template: plain-text prompt (ADR-0008).
-- [ ] **M6.5** Cross-family run: raw / L0 / L1 / L2 on banking20 for about five models
+- [x] **M6.5** Cross-family run: raw / L0 / L1 / L2 on banking20 for about five models
   (Colab); supported-families table in README and `docs/results.md`. Then tag 0.1.0.
+  *Done for five new families plus Qwen3-1.7B (point estimates; CIs lost to a runtime
+  disconnect; Mistral-7B did not finish).*
 
 ## M7 — After 0.1.0: operability
 - [ ] **M7.1** Standard logging: one stdlib `logging` logger per module under `brier`, with a
