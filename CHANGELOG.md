@@ -9,6 +9,7 @@ versioning: [Semantic Versioning](https://semver.org/).
 ### Removed
 - `datasets` from the `bench` extra (BANKING77 is read from its CSV directly).
 ### Fixed
+- L2 benchmark (`docs/results.md`, Qwen3-1.7B on banking20, 300 labels): accuracy 0.807 (L1: 0.668), ECE 0.035, NLL 0.727; label curve at 100/200/300. Colab notebooks `m5_4_l2_banking20_benchmark.ipynb` (full run incl. optional Qwen3-4B) and `m5_4b_l2_rerun.ipynb` (L2 only).
 - L2 temperature: Platt (1999) targets for two classes; plain-NLL temperature scaling for more, refitted against one-vs-rest Platt targets only when it hits its lower bound (separable OOF scores). Smoothing every fit made 20-class heads badly underconfident (banking20 L2: ECE 0.46 at 81 % accuracy).
 - mypy no longer pins `python_version = "3.10"`, which failed on Python 3.12+ where numpy 2.5 stubs use `type` statements.
 ### Added
