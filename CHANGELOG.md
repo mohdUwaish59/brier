@@ -25,6 +25,7 @@ versioning: [Semantic Versioning](https://semver.org/).
 - L1 benchmark (`docs/results.md`, Qwen3-1.7B on banking20): temperature T = 4.51 cuts ECE from 0.299 (L0) to 0.094 and NLL from 3.84 to 1.20, answers unchanged.
 - Colab notebook `notebooks/m4_l1_banking20_benchmark.ipynb` (raw, L0, L1 on banking20, M4 acceptance check).
 - Benchmark: level `L1` (`--levels raw,L0,L1`), temperature fitted on the calibration split; `calibration` and `L1_minus_L0` in the result JSON.
+- Colab notebook `notebooks/m5_4_l2_banking20_benchmark.ipynb` (raw, L0, L1, L2 at 100/200/300 labels on Qwen3-1.7B; optional Qwen3-4B).
 - Benchmark: level `L2` with label budgets (`--l2-budgets 100,200,300`) and a hidden-state cache (`--cache-dir`; no dataset text stored), `l2_curve` in the result JSON.
 - L2 in `Decider`: `fit_head(states, question, labels, layers=None)` and `level="L2"`; heads saved in artifacts with schema version 2 (ADR-0006; version 1 still loads); L2 temperature fitted against Platt-smoothed targets so separable data no longer yields near-0/1 probabilities.
 - `brier.heads.select`: L2 selection by stratified 5-fold OOF NLL over layers × α × {ridge, LDA}, refit on all labels, OOF temperature (`fit_temperature(log_t_bounds=...)`).
