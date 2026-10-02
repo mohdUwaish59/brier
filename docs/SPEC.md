@@ -49,7 +49,13 @@ res["route"].answer, res["route"].probs, res["route"].level  # "billing", {...},
   `1..L` (Score). `T` is fitted on top of L0 (with its prior, if fitted) and keyed by the whole
   question; refitting that question's prior discards its temperature. `level="L1"` raises
   `NotFittedError` for any question without a temperature.
-- `Decider.fit_head(states, question, labels, layers=None)`: L2
+- `Decider.fit_head(states, question, labels, layers=None)`: L2. At least 60 labelled states
+  and 5 per answer; labels typed like `Decision.answer`. Reads the hidden state at the last
+  prompt token (prompt rendered without rotation; Score with digits) for the candidate layers
+  (default every 2nd block from 40 % to 90 % depth), selects layer, solver and alpha by
+  out-of-fold NLL and fits the L2 temperature on Platt-smoothed out-of-fold targets. Warns if
+  the temperature hits its lower bound. `level="L2"` raises `NotFittedError` for any question
+  without a head. Heads are saved in artifacts (schema version 2, ADR-0006).
 - `Decider.save(path)` / `Decider.load(path, backend)`: calibration artifacts, never weights.
   `save` writes every fitted prior and temperature plus `prior_strength` (ADR-0003). `load`
   validates the artifact as untrusted input and refuses it unless it was fitted on the

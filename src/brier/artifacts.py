@@ -18,6 +18,7 @@ import math
 import os
 import stat
 import zipfile
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -27,16 +28,30 @@ import numpy as np
 from brier import prompts
 from brier._math import FloatArray
 from brier._version import __version__
-from brier.errors import ArtifactError, QuestionError
+from brier.errors import ArtifactError, BrierError, QuestionError
+from brier.heads.fitted import MAX_HIDDEN, L2Head
 from brier.questions import Choice, Noul, Question, Score
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2  # ADR-0006: adds L2 heads; version 1 still loads
+_READABLE_VERSIONS = (1, 2)
+MAX_ARTIFACT_QUESTIONS = 1024  # bounds parsing work (each head is four npz members)
 JSON_FILE = "artifact.json"
 ARRAYS_FILE = "arrays.npz"
 DEFAULT_MAX_BYTES = 100_000_000
 TEMPERATURE_RANGE = (1e-6, 1e6)
 _SUM_TOL = 1e-6
 _MAX_MEMBER_BYTES = 4096  # a prior has at most 26 float64s plus a .npy header
+_MAX_HEAD_MEMBER_BYTES = MAX_HIDDEN * 26 * 8 + 4096  # (d, C) float64 weights plus header
+_HEAD_KEYS = {
+    "layer",
+    "solver",
+    "alpha",
+    "temperature",
+    "temperature_at_bound",
+    "oof_nll",
+    "oof_accuracy",
+}
+_HEAD_ARRAYS = ("mean", "scale", "weights", "bias")
 _F8 = np.dtype("<f8")
 _NPY: Any = np.lib.format  # untyped in older numpy stubs (Python 3.10 resolves numpy 2.2)
 _TOP_KEYS = {
@@ -77,11 +92,14 @@ class Calibration:
         L0 prior: a strictly positive distribution over the question's answers.
     temperature : float or None
         L1 temperature in ``[1e-6, 1e6]``.
+    head : L2Head or None
+        Fitted L2 head (ADR-0006).
     """
 
     question: Question
     prior: FloatArray | None = None
     temperature: float | None = None
+    head: L2Head | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.question, (Choice, Noul, Score)):
@@ -104,6 +122,11 @@ class Calibration:
             if not lo <= t <= hi:  # NaN fails too
                 raise ArtifactError(f"temperature for {name!r} must be a number in [{lo}, {hi}]")
             object.__setattr__(self, "temperature", t)
+        if self.head is not None:
+            if not isinstance(self.head, L2Head):
+                raise ArtifactError(f"head for {name!r} must be an L2Head")
+            if self.head.n_classes != _n_answers(self.question):
+                raise ArtifactError(f"head for {name!r} has the wrong number of classes")
 
 
 @dataclass(frozen=True, eq=False)
@@ -157,6 +180,9 @@ def save_artifact(path: str | Path, artifact: Artifact) -> None:
     arrays: dict[str, Any] = {
         f"prior_{i}": c.prior for i, c in enumerate(artifact.calibrations) if c.prior is not None
     }
+    for i, c in enumerate(artifact.calibrations):
+        if c.head is not None:
+            arrays.update({f"head_{i}_{a}": getattr(c.head, a) for a in _HEAD_ARRAYS})
     buf = io.BytesIO()
     np.savez(buf, **arrays)
     data = buf.getvalue()
@@ -221,27 +247,36 @@ def _load(d: Path, model_id: str, revision: str | None, max_bytes: int) -> Artif
         doc = json.loads(raw_json.decode("utf-8"))
     except (ValueError, RecursionError) as e:  # covers UnicodeDecodeError, JSONDecodeError
         raise ArtifactError(f"{JSON_FILE} is not valid JSON") from e
-    _check_header(doc, model_id, revision)
+    version = _check_header(doc, model_id, revision)
     if hashlib.sha256(raw_arrays).hexdigest() != doc["arrays_sha256"]:
         raise ArtifactError(f"{ARRAYS_FILE} does not match its recorded SHA-256")
     entries = doc["questions"]
     if not isinstance(entries, list):
         raise ArtifactError("questions must be a list")
+    if len(entries) > MAX_ARTIFACT_QUESTIONS:
+        raise ArtifactError(f"at most {MAX_ARTIFACT_QUESTIONS} questions per artifact")
     for entry in entries:
-        _check_question_json(entry)
+        _check_question_json(entry, version)
     try:
         questions = [_question_from_json(entry) for entry in entries]
     except QuestionError as err:
         raise ArtifactError(f"invalid question in artifact: {err}") from err
-    sizes = {
-        i: _n_answers(q)
-        for i, (q, e) in enumerate(zip(questions, entries, strict=True))
-        if e["prior"]
-    }
-    priors = _read_priors(raw_arrays, sizes, max_bytes)
+    specs: dict[str, _Spec] = {}
+    for i, (q, entry) in enumerate(zip(questions, entries, strict=True)):
+        k = _n_answers(q)
+        if entry["prior"]:
+            specs[f"prior_{i}"] = (_exact((k,)), _MAX_MEMBER_BYTES)
+        if entry.get("head") is not None:
+            specs[f"head_{i}_mean"] = (_hidden_vector, _MAX_HEAD_MEMBER_BYTES)
+            specs[f"head_{i}_scale"] = (_hidden_vector, _MAX_HEAD_MEMBER_BYTES)
+            specs[f"head_{i}_weights"] = (_hidden_matrix(k), _MAX_HEAD_MEMBER_BYTES)
+            specs[f"head_{i}_bias"] = (_exact((k,)), _MAX_MEMBER_BYTES)
+    arrays = _read_arrays(raw_arrays, specs, max_bytes)
     calibrations = tuple(
-        Calibration(q, priors.get(i), e["temperature"])
-        for i, (q, e) in enumerate(zip(questions, entries, strict=True))
+        Calibration(
+            q, arrays.get(f"prior_{i}"), entry["temperature"], _head(i, entry.get("head"), arrays)
+        )
+        for i, (q, entry) in enumerate(zip(questions, entries, strict=True))
     )
     model = doc["model"]
     return Artifact(model["id"], model["revision"], doc["prior_strength"], calibrations)
@@ -270,12 +305,14 @@ def _read_capped(p: Path, max_bytes: int) -> bytes:
     return data
 
 
-def _check_header(doc: Any, model_id: str, revision: str | None) -> None:
+def _check_header(doc: Any, model_id: str, revision: str | None) -> int:
     if not isinstance(doc, dict) or set(doc) != _TOP_KEYS:
         raise ArtifactError(f"{JSON_FILE} must have exactly the keys {sorted(_TOP_KEYS)}")
     version = doc["schema_version"]
-    if type(version) is not int or version != SCHEMA_VERSION:
-        raise ArtifactError(f"unsupported schema_version {version!r} (expected {SCHEMA_VERSION})")
+    if type(version) is not int or version not in _READABLE_VERSIONS:
+        raise ArtifactError(
+            f"unsupported schema_version {version!r} (readable: {_READABLE_VERSIONS})"
+        )
     model = doc["model"]
     if (
         not isinstance(model, dict)
@@ -298,16 +335,20 @@ def _check_header(doc: Any, model_id: str, revision: str | None) -> None:
         )
     if doc["template_hash"] != prompts.template_hash():
         raise ArtifactError("prompt template mismatch: the artifact was fitted with other prompts")
+    return int(version)
 
 
-def _check_question_json(e: Any) -> None:
+def _check_question_json(e: Any, version: int) -> None:
     if not isinstance(e, dict):
         raise ArtifactError("each question entry must be an object")
     kind = e.get("type")
     if not isinstance(kind, str) or kind not in _QUESTION_KEYS:
         raise ArtifactError("each question needs a type of choice, noul or score")
-    if set(e) != _QUESTION_KEYS[kind]:
-        raise ArtifactError(f"{kind} entry must have exactly {sorted(_QUESTION_KEYS[kind])}")
+    keys = _QUESTION_KEYS[kind] | ({"head"} if version >= 2 else set())
+    if set(e) != keys:
+        raise ArtifactError(f"{kind} entry must have exactly {sorted(keys)}")
+    if version >= 2 and e["head"] is not None:
+        _check_head_json(e["head"])
     if not isinstance(e["prior"], bool):
         raise ArtifactError("prior must be true or false")
     if e["temperature"] is not None and not _is_number(e["temperature"]):
@@ -335,43 +376,105 @@ def _question_to_json(c: Calibration) -> dict[str, Any]:
         entry.update(type="noul")
     else:
         entry.update(type="score", levels=q.levels, labels=list(q.labels) if q.labels else None)
-    entry.update(prior=c.prior is not None, temperature=c.temperature)
+    entry.update(prior=c.prior is not None, temperature=c.temperature, head=None)
+    if c.head is not None:
+        h = c.head
+        entry["head"] = {
+            "layer": h.layer,
+            "solver": h.solver,
+            "alpha": h.alpha,
+            "temperature": h.temperature,
+            "temperature_at_bound": h.temperature_at_bound,
+            "oof_nll": h.oof_nll,
+            "oof_accuracy": h.oof_accuracy,
+        }
     return entry
 
 
-def _read_priors(data: bytes, sizes: dict[int, int], max_bytes: int) -> dict[int, FloatArray]:
-    """Read ``prior_<i>`` (length ``sizes[i]``) from the npz without trusting its headers."""
+def _check_head_json(h: Any) -> None:
+    if not isinstance(h, dict) or set(h) != _HEAD_KEYS:
+        raise ArtifactError(f"head must be an object with exactly {sorted(_HEAD_KEYS)}")
+    if type(h["layer"]) is not int or not isinstance(h["solver"], str):
+        raise ArtifactError("head layer must be an int and solver a string")
+    if h["alpha"] is not None and not _is_number(h["alpha"]):
+        raise ArtifactError("head alpha must be a number or null")
+    if not all(_is_number(h[k]) for k in ("temperature", "oof_nll", "oof_accuracy")):
+        raise ArtifactError("head temperature and OOF metrics must be numbers")
+    if not isinstance(h["temperature_at_bound"], bool):
+        raise ArtifactError("head temperature_at_bound must be true or false")
+
+
+def _head(i: int, h: dict[str, Any] | None, arrays: dict[str, FloatArray]) -> L2Head | None:
+    if h is None:
+        return None
+    try:
+        return L2Head(
+            layer=h["layer"],
+            solver=h["solver"],
+            alpha=h["alpha"],
+            temperature=h["temperature"],
+            temperature_at_bound=h["temperature_at_bound"],
+            oof_nll=h["oof_nll"],
+            oof_accuracy=h["oof_accuracy"],
+            mean=arrays[f"head_{i}_mean"],
+            scale=arrays[f"head_{i}_scale"],
+            weights=arrays[f"head_{i}_weights"],
+            bias=arrays[f"head_{i}_bias"],
+        )
+    except BrierError as e:
+        raise ArtifactError(f"invalid head for question {i}: {e}") from e
+
+
+_ShapeCheck = Callable[[tuple[int, ...]], bool]
+_Spec = tuple[_ShapeCheck, int]  # (accepted shapes, per-member byte cap)
+
+
+def _exact(shape: tuple[int, ...]) -> _ShapeCheck:
+    return lambda s: s == shape
+
+
+def _hidden_vector(s: tuple[int, ...]) -> bool:
+    return len(s) == 1 and 1 <= s[0] <= MAX_HIDDEN
+
+
+def _hidden_matrix(n_classes: int) -> _ShapeCheck:
+    return lambda s: len(s) == 2 and 1 <= s[0] <= MAX_HIDDEN and s[1] == n_classes
+
+
+def _read_arrays(data: bytes, specs: dict[str, _Spec], max_bytes: int) -> dict[str, FloatArray]:
+    """Read exactly the arrays in ``specs`` from the npz without trusting its headers."""
     try:
         z = zipfile.ZipFile(io.BytesIO(data))
     except zipfile.BadZipFile as e:
         raise ArtifactError(f"{ARRAYS_FILE} is not a valid npz file") from e
     with z:
         infos = z.infolist()
-        expected = {f"prior_{i}.npy": i for i in sizes}
+        expected = {f"{key}.npy": key for key in specs}
         names = [info.filename for info in infos]
         if len(names) != len(expected) or set(names) != set(expected):
-            raise ArtifactError(f"{ARRAYS_FILE} must contain exactly the referenced priors")
+            raise ArtifactError(f"{ARRAYS_FILE} must contain exactly the referenced arrays")
         if sum(info.file_size for info in infos) > max_bytes:
             raise ArtifactError(f"{ARRAYS_FILE} contents exceed the size cap of {max_bytes} bytes")
-        out: dict[int, FloatArray] = {}
+        out: dict[str, FloatArray] = {}
         for info in infos:
             if info.flag_bits & 0x1:
                 raise ArtifactError(f"{info.filename} is encrypted")
             if info.compress_type not in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED):
                 raise ArtifactError(f"{info.filename} uses an unsupported compression method")
-            if info.file_size > _MAX_MEMBER_BYTES:
-                raise ArtifactError(f"{info.filename} is too large for a prior")
-            i = expected[info.filename]
+            key = expected[info.filename]
+            check, cap = specs[key]
+            if info.file_size > cap:
+                raise ArtifactError(f"{info.filename} is too large")
             with z.open(info) as member:  # bounded: never trust the declared file_size
-                raw = member.read(_MAX_MEMBER_BYTES + 1)
-            if len(raw) > _MAX_MEMBER_BYTES:  # pragma: no cover - zipfile stops at file_size
-                raise ArtifactError(f"{info.filename} is too large for a prior")
-            out[i] = _parse_npy(raw, sizes[i], info.filename)
+                raw = member.read(cap + 1)
+            if len(raw) > cap:  # pragma: no cover - zipfile stops at file_size
+                raise ArtifactError(f"{info.filename} is too large")
+            out[key] = _parse_npy(raw, check, info.filename)
     return out
 
 
-def _parse_npy(raw: bytes, n: int, name: str) -> FloatArray:
-    """Validate a ``.npy`` header (``<f8``, C order, shape ``(n,)``), then read ``n`` floats."""
+def _parse_npy(raw: bytes, check: _ShapeCheck, name: str) -> FloatArray:
+    """Validate a ``.npy`` header (``<f8``, C order, accepted shape), then read the data."""
     f = io.BytesIO(raw)
     version = _NPY.read_magic(f)
     if version == (1, 0):
@@ -380,9 +483,11 @@ def _parse_npy(raw: bytes, n: int, name: str) -> FloatArray:
         shape, fortran_order, dtype = _NPY.read_array_header_2_0(f)
     else:
         raise ArtifactError(f"{name} has unsupported .npy version {version}")
-    if dtype != _F8 or fortran_order or shape != (n,):
-        raise ArtifactError(f"{name} must be a little-endian float64 vector of length {n}")
+    exact_ints = isinstance(shape, tuple) and all(type(v) is int for v in shape)
+    if dtype != _F8 or fortran_order or not exact_ints or not check(shape):
+        raise ArtifactError(f"{name} must be little-endian float64, C order, of the expected shape")
+    count = math.prod(shape)
     body = f.read()
-    if len(body) != n * _F8.itemsize:
-        raise ArtifactError(f"{name} has {len(body)} data bytes, expected {n * _F8.itemsize}")
-    return np.frombuffer(body, dtype=_F8).astype(np.float64)
+    if len(body) != count * _F8.itemsize:
+        raise ArtifactError(f"{name} has {len(body)} data bytes, expected {count * _F8.itemsize}")
+    return np.frombuffer(body, dtype=_F8).astype(np.float64).reshape(shape)

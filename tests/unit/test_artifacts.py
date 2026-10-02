@@ -85,7 +85,7 @@ def test_round_trip(tmp_path: Path) -> None:
 def test_json_records_provenance(tmp_path: Path) -> None:
     d = _save(tmp_path)
     j = json.loads((d / JSON_FILE).read_text(encoding="utf-8"))
-    assert j["schema_version"] == SCHEMA_VERSION == 1
+    assert j["schema_version"] == SCHEMA_VERSION == 2  # ADR-0006
     assert j["model"] == {"id": MODEL, "revision": REV}
     assert j["template_hash"] == prompts.template_hash()
     assert j["arrays_sha256"] == hashlib.sha256((d / ARRAYS_FILE).read_bytes()).hexdigest()
@@ -133,7 +133,7 @@ def test_tampered_npz_fails_checksum(tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     "edit",
     [
-        lambda j: j.update(schema_version=2),
+        lambda j: j.update(schema_version=3),  # 1 and 2 are readable
         lambda j: j.pop("template_hash"),
         lambda j: j.update(unexpected="x"),
         lambda j: j.update(prior_strength=1.5),

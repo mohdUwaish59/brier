@@ -93,8 +93,7 @@ def test_temperature_fitted_on_out_of_fold_scores() -> None:
     assert sel.temperature > 0
     logp = sel.log_probs(h[:, 2])
     np.testing.assert_allclose(np.exp(logp).sum(axis=1), 1.0)
-    # ridge scores span ~1, so T is far below L1's lower bound e^-3: the wide L2 bounds matter
-    assert sel.temperature < np.exp(-3)
+    assert not sel.temperature_at_bound
 
 
 def test_restricting_solvers_and_alphas() -> None:
@@ -210,7 +209,9 @@ def test_all_candidates_failing_raises() -> None:
         select_head(h, [0, 1, 2, 3], y, C, solvers=("lda",))
 
 
-def test_separable_data_hits_the_temperature_bound_and_is_flagged() -> None:
+def test_separable_data_keeps_a_finite_temperature() -> None:
+    # Plain NLL would drive T to its lower bound (near-0/1 probabilities); Platt-smoothed
+    # targets keep T interior and confidence bounded.
     from brier.heads.select import L2_LOG_T_BOUNDS
 
     rng = np.random.default_rng(5)
@@ -218,9 +219,10 @@ def test_separable_data_hits_the_temperature_bound_and_is_flagged() -> None:
     h = rng.normal(size=(80, 1, 6))
     h[:, 0, 0] += 10.0 * y  # perfectly separable on one feature
     sel = select_head(h, [0], y, 2)
-    assert sel.temperature_at_bound
-    assert np.log(sel.temperature) == pytest.approx(L2_LOG_T_BOUNDS[0])
-    assert L2_LOG_T_BOUNDS == (-7.0, 7.0)
+    assert sel.oof_accuracy == 1.0
+    assert not sel.temperature_at_bound
+    assert L2_LOG_T_BOUNDS[0] < np.log(sel.temperature) < L2_LOG_T_BOUNDS[1]
+    assert np.exp(sel.log_probs(h[:, 0])).max() < 0.999
 
 
 def test_normal_data_does_not_flag_the_bound() -> None:
@@ -242,3 +244,33 @@ def test_log_t_bounds_must_be_numbers(bounds: tuple) -> None:  # type: ignore[ty
     y = rng.integers(0, 3, size=60)
     with pytest.raises(BrierError):
         fit_temperature(np.log(np.full((60, 3), 1 / 3)), y, log_t_bounds=bounds)
+
+
+def test_platt_smoothing_keeps_t_finite_on_separable_scores() -> None:
+    y = np.repeat(np.arange(3), 30)
+    logp = np.log(np.full((90, 3), 0.2))
+    logp[np.arange(90), y] = np.log(0.6)  # always right: separable
+    plain = fit_temperature(logp, y, log_t_bounds=(-7.0, 7.0))
+    platt = fit_temperature(logp, y, log_t_bounds=(-7.0, 7.0), smoothing="platt")
+    assert np.log(plain) == pytest.approx(-7.0)  # runs to the bound
+    assert -7.0 < np.log(platt) < 7.0
+    # fitted confidence on the true class matches the smoothed target (30 + 1) / (30 + 3)
+    p_true = np.exp((logp / platt) - np.log(np.exp(logp / platt).sum(1, keepdims=True)))[0, y[0]]
+    assert p_true == pytest.approx(31 / 33, abs=1e-4)
+
+
+def test_platt_smoothing_barely_matters_on_noisy_data() -> None:
+    rng = np.random.default_rng(1)
+    c = rng.normal(0, 1.5, size=(5000, 4))
+    p = np.exp(c - np.log(np.exp(c).sum(1, keepdims=True)))
+    y = np.array([rng.choice(4, p=row) for row in p])
+    logp = 2.0 * c
+    plain = fit_temperature(logp, y)
+    platt = fit_temperature(logp, y, smoothing="platt")
+    assert platt == pytest.approx(plain, rel=0.02)
+
+
+def test_smoothing_validated() -> None:
+    y = np.repeat(np.arange(2), 30)
+    with pytest.raises(BrierError):
+        fit_temperature(np.zeros((60, 2)), y, smoothing="laplace")  # type: ignore[arg-type]
