@@ -76,8 +76,24 @@ Questions:
 - **`Noul(text, name=...)`**: yes/no; `p_yes` is the probability of yes.
 - **`Score(text, levels, name=...)`**: an integer rating `1..levels`; `expected` is the mean.
 
-Works with Hugging Face chat models that ship safetensors weights. Tested families are listed in
-[`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md).
+Works with Hugging Face chat models that ship safetensors weights. Check yours before
+calibrating:
+
+```text
+$ brier check Qwen/Qwen3-0.6B --revision c1899de289a04d12100db370d81485cdf75e47ca
+
+  PASS  revision           c1899de289a04d12100db370d81485cdf75e47ca
+  PASS  labels.choice      A-Z: single, distinct tokens
+  PASS  labels.noul        Yes, No: single, distinct tokens
+  PASS  labels.score       10 levels as lettered options (digit labels are not single tokens)
+  PASS  batch_consistency  max |p_batched - p_single| = 5.3e-06 (limit 2e-02)
+  PASS  hidden_states      7 candidate layers (12-24 of 28), d = 1024
+  PASS  sanity             accuracy raw 79% / L0 79% on 14 items, order flips raw 50% / L0 17%, ...
+
+Supported levels: raw, L0, L1, L2
+```
+
+Tested families are listed in [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md).
 
 ## Documentation
 

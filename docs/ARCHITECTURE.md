@@ -18,6 +18,8 @@ src/brier/
     select.py          # k-fold out-of-fold model selection (layer, alpha, solver, T)
   artifacts.py         # save/load calibration state (JSON + npz, schema-versioned)
   decider.py           # orchestration; the only class most users touch
+  check.py             # conformance checks behind `brier check`
+  __main__.py          # `brier` command line (`brier check`)
   metrics.py           # accuracy, NLL, Brier, ECE, flip rate, risk-coverage, bootstrap CI
   backends/
     base.py            # Backend Protocol
@@ -26,7 +28,7 @@ src/brier/
   bench/
     tasks.py           # dataset loaders -> (state, question, label) items
     run.py             # benchmark runner + result JSON writer
-    __main__.py        # CLI
+    __main__.py        # benchmark CLI
 tests/
   unit/                # CPU, FakeBackend, fast, no network
   integration/         # real small model, marked @pytest.mark.integration
