@@ -2,4 +2,4 @@
 
 This project follows the [Contributor Covenant, version 2.1](https://www.contributor-covenant.org/version/2/1/code_of_conduct/).
 
-Report unacceptable behaviour to: <your-contact-email>. Reports are handled confidentially.
+Report unacceptable behaviour to: uwaishmohd05@gmail.com. Reports are handled confidentially.
