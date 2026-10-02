@@ -219,7 +219,7 @@ def test_separable_data_keeps_a_finite_temperature() -> None:
     h = rng.normal(size=(80, 1, 6))
     h[:, 0, 0] += 10.0 * y  # perfectly separable on one feature
     sel = select_head(h, [0], y, 2)
-    assert sel.oof_accuracy == 1.0
+    assert sel.oof_accuracy >= 0.95  # ranking by plain NLL may prefer a near-separable candidate
     assert not sel.temperature_at_bound
     assert L2_LOG_T_BOUNDS[0] < np.log(sel.temperature) < L2_LOG_T_BOUNDS[1]
     assert np.exp(sel.log_probs(h[:, 0])).max() < 0.999
@@ -254,9 +254,9 @@ def test_platt_smoothing_keeps_t_finite_on_separable_scores() -> None:
     platt = fit_temperature(logp, y, log_t_bounds=(-7.0, 7.0), smoothing="platt")
     assert np.log(plain) == pytest.approx(-7.0)  # runs to the bound
     assert -7.0 < np.log(platt) < 7.0
-    # fitted confidence on the true class matches the smoothed target (30 + 1) / (30 + 3)
+    # fitted confidence on the true class matches the one-vs-rest target (30 + 1) / (30 + 2)
     p_true = np.exp((logp / platt) - np.log(np.exp(logp / platt).sum(1, keepdims=True)))[0, y[0]]
-    assert p_true == pytest.approx(31 / 33, abs=1e-4)
+    assert p_true == pytest.approx(31 / 32, abs=1e-4)
 
 
 def test_platt_smoothing_barely_matters_on_noisy_data() -> None:
@@ -274,3 +274,99 @@ def test_smoothing_validated() -> None:
     y = np.repeat(np.arange(2), 30)
     with pytest.raises(BrierError):
         fit_temperature(np.zeros((60, 2)), y, smoothing="laplace")  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(("k", "n_c"), [(2, 30), (5, 15), (20, 15)])
+def test_platt_cap_does_not_depend_on_class_count(k: int, n_c: int) -> None:
+    # Separable scores: the fitted true-class confidence must be the one-vs-rest Platt target
+    # (n_c+1)/(n_c+2) for any K (the old (n_c+1)/(n_c+K) gave 16/35 at K = 20).
+    y = np.repeat(np.arange(k), n_c)
+    logp = np.zeros((len(y), k))
+    logp[np.arange(len(y)), y] = 1.0  # always right by the same margin
+    t = fit_temperature(logp, y, log_t_bounds=(-7.0, 7.0), smoothing="platt")
+    z = logp / t
+    p = np.exp(z - np.log(np.exp(z).sum(1, keepdims=True)))
+    assert p[0, y[0]] == pytest.approx((n_c + 1) / (n_c + 2), abs=1e-4)
+
+
+def test_platt_two_class_targets_match_platt_1999() -> None:
+    # K = 2: positives (N+ + 1) / (N+ + 2), negatives 1 / (N- + 2) for the positive class.
+    from brier.calibrate.temperature import platt_targets
+
+    y = np.array([0] * 3 + [1] * 5)
+    t = platt_targets(y, 2)
+    np.testing.assert_allclose(t[0], [4 / 5, 1 / 5])
+    np.testing.assert_allclose(t[3], [1 / 7, 6 / 7])
+    np.testing.assert_allclose(t.sum(axis=1), 1.0)
+
+
+def test_platt_targets_spread_rest_evenly() -> None:
+    from brier.calibrate.temperature import platt_targets
+
+    y = np.array([0] * 4 + [1, 2, 3])
+    t = platt_targets(y, 4)
+    np.testing.assert_allclose(t[0], [5 / 6, 1 / 18, 1 / 18, 1 / 18])
+    np.testing.assert_allclose(t.sum(axis=1), 1.0)
+
+
+def test_platt_targets_need_two_classes() -> None:
+    from brier.calibrate.temperature import platt_targets
+
+    with pytest.raises(BrierError):
+        platt_targets(np.zeros(5, dtype=int), 1)
+
+
+def test_l2_temperature_is_plain_nll_when_not_separable() -> None:
+    from brier.heads.select import fit_l2_temperature
+
+    rng = np.random.default_rng(3)
+    y = np.repeat(np.arange(20), 5)  # K = 20, 5 labels per class: the case smoothing broke
+    logp = rng.normal(0, 1, size=(100, 20))
+    logp[np.arange(100), y] += 2.0  # informative but overlapping
+    plain = fit_temperature(logp, y, log_t_bounds=(-7.0, 7.0))
+    assert -7.0 < np.log(plain) < 7.0
+    assert fit_l2_temperature(logp, y) == plain
+
+
+def test_l2_temperature_falls_back_to_platt_when_separable_many_class() -> None:
+    from brier.heads.select import fit_l2_temperature
+
+    y = np.repeat(np.arange(4), 20)
+    logp = np.zeros((80, 4))
+    logp[np.arange(80), y] = 1.0  # always right: plain NLL runs to the lower bound
+    assert np.log(fit_temperature(logp, y, log_t_bounds=(-7.0, 7.0))) == pytest.approx(-7.0)
+    t = fit_l2_temperature(logp, y)
+    assert t == fit_temperature(logp, y, log_t_bounds=(-7.0, 7.0), smoothing="platt")
+    assert -7.0 < np.log(t) < 7.0
+
+
+def test_l2_temperature_two_classes_always_platt() -> None:
+    from brier.heads.select import fit_l2_temperature
+
+    rng = np.random.default_rng(4)
+    y = np.repeat(np.arange(2), 30)
+    logp = rng.normal(0, 1, size=(60, 2))
+    logp[np.arange(60), y] += 3.0  # one or two errors: plain NLL would not hit the bound
+    platt = fit_temperature(logp, y, log_t_bounds=(-7.0, 7.0), smoothing="platt")
+    assert fit_l2_temperature(logp, y) == platt
+
+
+def test_l2_heads_are_calibrated_on_non_separable_many_class_data() -> None:
+    # End to end through select_head: K = 20, 5 labels per class, overlapping classes.
+    # The held-out ECE must be close to what plain temperature scaling achieves (the earlier
+    # smoothing-on-every-fit gave ~0.17 here; plain ~0.02 in the math review's simulation).
+    from brier.metrics import ece
+
+    rng = np.random.default_rng(11)
+    centres = rng.normal(0, 1.0, size=(20, 64))
+
+    def draw(n_per: int) -> tuple:  # type: ignore[type-arg]
+        y = np.repeat(np.arange(20), n_per)
+        return (centres[y] + rng.normal(0, 3.0, size=(len(y), 64)))[:, None, :], y
+
+    h, y = draw(5)
+    sel = select_head(h, [0], y, 20)
+    h_test, y_test = draw(150)
+    p = np.exp(sel.log_probs(h_test[:, 0]))
+    assert 0.2 < float(np.mean(p.argmax(1) == y_test)) < 0.9  # informative, not separable
+    assert ece(p, y_test) < 0.08

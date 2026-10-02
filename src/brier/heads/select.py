@@ -3,10 +3,11 @@
 Stratified k-fold (k = 5, seeded) over ``layers x alpha x solver``: ridge for each alpha on a
 log grid, shrinkage LDA once per layer (it has no alpha). Each candidate's out-of-fold (OOF)
 scores are temperature-scaled before their NLL is compared, so ridge scores (not
-log-probabilities) and LDA scores compete fairly; the temperature is fitted against
-Platt-smoothed targets so separable OOF scores do not drive it to its bound, while the
-candidates are compared by plain (hard-label) OOF NLL. The best candidate is refitted on
-all labels and its temperature is the one fitted on its OOF scores.
+log-probabilities) and LDA scores compete fairly. The temperature uses Platt (1999)
+targets for two classes and plain NLL (Guo 2017) for more, refitted against one-vs-rest
+Platt targets only if it lands on its lower bound (see fit_l2_temperature). Candidates are
+compared by plain OOF NLL. The best candidate is refitted on all labels and its temperature
+is the one fitted on its OOF scores.
 """
 
 from __future__ import annotations
@@ -32,6 +33,7 @@ DEFAULT_ALPHAS = (1e-2, 1e-1, 1.0, 1e1, 1e2, 1e3, 1e4)
 # need T > 1. [-7, 7] covers both without allowing unrecoverable sharpness.
 L2_LOG_T_BOUNDS = (-7.0, 7.0)
 MIN_PER_CLASS = 5
+_BOUND_TOL = 1e-3  # |log T - bound| below this counts as hitting the bound
 MIN_TOTAL = 60
 
 
@@ -62,6 +64,22 @@ class L2Selection:
     def log_probs(self, h: npt.ArrayLike) -> FloatArray:
         """``(n, C)`` log-probabilities ``norm(scores / T)`` for hidden states of ``layer``."""
         return norm(self.head.scores(h) / self.temperature)
+
+
+def fit_l2_temperature(logp: npt.ArrayLike, labels: npt.ArrayLike) -> float:
+    """L2 temperature on OOF scores.
+
+    Two classes: Platt (1999) targets, always - small, near-separable binary sets otherwise
+    give near-0/1 probabilities. More classes: plain NLL temperature scaling (Guo 2017),
+    which calibrates best there; it is refitted against one-vs-rest Platt targets only if it
+    lands on its lower bound (separable OOF scores, where plain NLL would push ``T`` to 0).
+    """
+    if np.asarray(logp).shape[-1] == 2:
+        return fit_temperature(logp, labels, log_t_bounds=L2_LOG_T_BOUNDS, smoothing="platt")
+    t = fit_temperature(logp, labels, log_t_bounds=L2_LOG_T_BOUNDS)
+    if abs(math.log(t) - L2_LOG_T_BOUNDS[0]) < _BOUND_TOL:
+        t = fit_temperature(logp, labels, log_t_bounds=L2_LOG_T_BOUNDS, smoothing="platt")
+    return t
 
 
 def default_layers(num_layers: int) -> list[int]:
@@ -179,7 +197,7 @@ def select_head(
                     train = np.setdiff1d(np.arange(len(y)), f)
                     oof[f] = _fit(h[train], y[train], n_classes, solver, alpha).scores(h[f])
                 lp = norm(oof)
-                t = fit_temperature(lp, y, log_t_bounds=L2_LOG_T_BOUNDS, smoothing="platt")
+                t = fit_l2_temperature(lp, y)
                 oof_logp = norm(oof / t)
                 score = float(-np.mean(oof_logp[np.arange(len(y)), y]))
             except BrierError:  # e.g. degenerate LDA on this layer: skip, keep searching
@@ -193,5 +211,5 @@ def select_head(
     head = _fit(h_all[:, layer_ids.index(layer)], y, n_classes, solver, alpha)
     accuracy = float(np.mean(oof_logp.argmax(axis=1) == y))
     log_t = math.log(t)
-    at_bound = min(abs(log_t - b) for b in L2_LOG_T_BOUNDS) < 1e-3
+    at_bound = min(abs(log_t - b) for b in L2_LOG_T_BOUNDS) < _BOUND_TOL
     return L2Selection(layer, solver, alpha, head, t, at_bound, score, accuracy, tuple(grid))

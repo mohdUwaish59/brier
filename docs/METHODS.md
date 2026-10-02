@@ -77,13 +77,24 @@ Ledoit–Wolf formula is defined on). Ledoit–Wolf: `μ = tr Σ / d`, `δ² = �
 matrix `Z Zᵀ`. `π_c` are training class frequencies; every class must appear. With n < d and
 `γ ≈ 0` the shrunk covariance is singular and fitting raises.
 
-**Probabilities.** `log p = norm(s / T)` with `T` fitted on out-of-fold scores against
-Platt-smoothed targets (Platt 1999, generalised to C classes): `(n_c + 1)/(n_c + C)` for
-an item's class `c`, `1/(n_c + C)` for each other class. On separable OOF scores a 0/1
-target would drive `T → 0` (near-0/1 probabilities); smoothed targets keep `T` finite and
-barely matter when the data are not separable. Candidates are still compared by plain OOF NLL.
-The smoothing is strong with many classes and few labels (C = 10, n_c = 5 caps the true-class
-target at 6/15 = 0.4), so such heads come out deliberately underconfident.
+**Probabilities.** `log p = norm(s / T)` with `T` fitted on out-of-fold scores. With two
+classes `T` is always fitted against Platt (1999) targets: small, near-separable binary sets
+otherwise give near-0/1 probabilities (on a real 60-label refund/tracking task, plain NLL put
+98.9 % "refund" on a tracking request). With more classes `T` is fitted by plain NLL
+(temperature scaling, Guo 2017), and only if that fit lands on its lower bound — separable OOF
+scores, where plain NLL would drive `T → 0` — is it refitted against Platt targets taken
+one-vs-rest: `(n_c + 1)/(n_c + 2)` for an item's class `c`,
+the remaining `1/(n_c + 2)` spread evenly over the other `C − 1` classes (for `C = 2` exactly
+Platt's `(N₊+1)/(N₊+2)` and `1/(N₋+2)`; only Platt's targets are used, the model stays a
+single temperature with no bias term). Candidates are compared by plain OOF NLL.
+
+*Correction (M5.4b):* earlier versions smoothed every fit. `(n_c + 1)/(n_c + C)` capped the
+target at 16/35 ≈ 0.46 with C = 20 and 15 labels per class (banking20 L2: ECE 0.46 at 81 %
+accuracy); one-vs-rest targets on every fit still biased `T` upward with many classes (in
+simulation, C = 20 with 5 labels per class: ECE 0.17 vs 0.02 for plain NLL). Smoothing is
+therefore always used for two classes and, beyond two, only when plain NLL hits the bound.
+Known residual risk: small, easy tasks with 3–5 classes and very few labels can still come out
+somewhat overconfident.
 
 **Selection.** Stratified k-fold (k=5, seeded) over the grid
 `layers × α ∈ {1e-2,…,1e4} (log grid) × solver ∈ {ridge, lda}`; choose by
