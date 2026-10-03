@@ -9,8 +9,8 @@
 [![Docs](https://img.shields.io/badge/docs-API%20reference-informational)](https://mohduwaish59.github.io/brier/)
 
 > Turn an open LLM into a calibrated decision model: choice, yes/no and score questions
-> answered with real probabilities, read from the model in a forward pass, without generation
-> or fine-tuning.
+> answered with real probabilities, read straight from the model's next-token logits, without
+> generation or fine-tuning.
 
 **Status: alpha (0.1).** The API may still change before 1.0. See the
 [roadmap](https://github.com/mohdUwaish59/brier/blob/main/docs/ROADMAP.md).
