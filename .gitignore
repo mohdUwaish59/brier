@@ -22,3 +22,7 @@ cache/
 *.bin
 *.pt
 site/
+
+# local scratch scripts
+test_script.py
+script.py
