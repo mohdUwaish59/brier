@@ -1,8 +1,6 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/mohdUwaish59/brier/main/docs/assets/brier-logo.png" alt="brier logo" width="110">
+  <img src="https://raw.githubusercontent.com/mohdUwaish59/brier/main/docs/assets/brier-logo.png" alt="brier" width="420">
 </p>
-
-# brier
 
 [![CI](https://github.com/mohdUwaish59/brier/actions/workflows/ci.yml/badge.svg)](https://github.com/mohdUwaish59/brier/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/brier)](https://pypi.org/project/brier/)
