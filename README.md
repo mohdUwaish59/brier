@@ -42,6 +42,8 @@ L1 and L2 use 300 labels. Full tables, protocol and caveats:
 | ECE ↓ | 0.357 | 0.299 | 0.094 | **0.035** [0.028, 0.050] |
 | NLL ↓ | 6.541 | 3.845 | 1.204 | **0.727** [0.672, 0.781] |
 
+![Accuracy and answer flips on banking20 for six open model families: raw readout, L0 with no labels, L2 with 300 labels](https://raw.githubusercontent.com/mohdUwaish59/brier/main/docs/assets/cross_family.png)
+
 Across six model families (same task and labels; point estimates):
 
 | Model | Accuracy: raw → L0 → L2 | ECE: raw → L1 → L2 | Order flips: raw → L0 |
