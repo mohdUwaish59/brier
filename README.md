@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/mohdUwaish59/brier/main/docs/assets/brier-logo.png" alt="brier logo" width="110">
+</p>
+
 # brier
 
 [![CI](https://github.com/mohdUwaish59/brier/actions/workflows/ci.yml/badge.svg)](https://github.com/mohdUwaish59/brier/actions/workflows/ci.yml)
@@ -107,6 +111,10 @@ Questions:
 
 Hugging Face causal LMs with safetensors weights: chat models through their chat template, base
 models through a plain-text prompt. Check yours before calibrating:
+
+![brier check running on Qwen3-0.6B: every check passes and the supported levels are listed](https://raw.githubusercontent.com/mohdUwaish59/brier/main/docs/assets/brier-check.gif)
+
+The same output as text:
 
 ```text
 $ brier check Qwen/Qwen3-0.6B --revision c1899de289a04d12100db370d81485cdf75e47ca

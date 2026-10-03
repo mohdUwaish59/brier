@@ -10,7 +10,7 @@ repos:
       - id: check-merge-conflict
       - id: check-added-large-files
         args: ["--maxkb=500"]
-        exclude: ^uv\.lock$  # lock file is large because of torch wheel hashes
+        exclude: ^(uv\.lock|docs/assets/.*\.(gif|png))$  # lock file (torch hashes); README media
       - id: detect-private-key
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: a56c0b927e6465d37cae3e97d35d4d18ab2b96cd  # frozen: v0.16.9
