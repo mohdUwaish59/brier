@@ -35,19 +35,21 @@ AnyJev builds on the same literature, so the two libraries agree on much of the 
 ## Where brier differs from AnyJev
 
 Taken from AnyJev's public repository when it was read; their project may have changed since.
+An earlier version of this table said AnyJev fixes the L2 layer and head type; that was
+wrong (corrected after re-reading its `fit_head`).
 
 | | AnyJev | brier |
 |---|---|---|
-| L2 head family | caller picks one (diff-means, LDA, ridge, reduced-rank) | ridge and LDA, chosen by out-of-fold NLL |
-| L2 layer | fixed by the caller | selected over a layer grid |
-| LDA shrinkage | fixed values | Ledoit–Wolf, estimated from the data |
+| L2 head type | LDA and ridge by default (also diff-means, reduced-rank), chosen by out-of-fold NLL | ridge and LDA, chosen by out-of-fold NLL |
+| L2 layer | chosen by out-of-fold NLL from five depths (50–100 %) | chosen by out-of-fold NLL from every 2nd block between 40 % and 90 % depth |
+| LDA shrinkage | chosen from a fixed grid (0.3, 0.6, 0.9) | Ledoit–Wolf, estimated from the data |
 | L2 folds | random k-fold | stratified k-fold |
 | L2 temperature | plain NLL | Platt targets for two classes; plain NLL beyond, with a Platt fallback for separable scores |
-| Model loading | allows `trust_remote_code` | never runs model code; safetensors only |
+| Model loading | `trust_remote_code` available as an option; safetensors not enforced | never runs model code; safetensors only |
 | Prompt | state inserted as is | state escaped and tokenised with special tokens disabled |
-| Calibration files | — | JSON + `.npz`, validated as untrusted input |
+| Saved calibration | heads saved and shipped (`anyjev-heads/`) | JSON + `.npz` bound to model id, revision, dtype and prompt templates, validated as untrusted input |
 | Evaluation | larger task suite; pooled ECE as the headline | one task so far; bootstrap CIs, paired comparisons, per-question ECE, 2,603 test items |
-| Model families | Qwen | five families tested (docs/COMPATIBILITY.md) |
+| Models in published results | Qwen | 15 models across Qwen3, SmolLM, TinyLlama, OLMo, Gemma 3, Granite, LFM2, DeepSeek-R1-Distill, Falcon3, Phi, OLMoE and Mistral (docs/COMPATIBILITY.md) |
 
 AnyJev has much that brier does not: shared-prefix KV caching, certified adaptive stopping of
 rotations, a vLLM backend, model truncation for serving L2, online and label-free head
