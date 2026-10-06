@@ -25,6 +25,13 @@ Combine by geometric mean (mean of log-probs) and renormalise:
     log p̄_k = norm( (1/|S|) Σ_s ℓ^(s)_k )
 
 Default `S` = all K shifts (every option visits every position once).
+
+*Subset rotations (M7.2, benchmark only):* `m` evenly spaced shifts
+`S_m = {floor(j K / m) : j = 0, …, m − 1}` cost `m` forward passes instead of `K`. The
+combine is unchanged (geometric mean over `S_m`), and the batch prior is fitted on the pool
+with the same `S_m`. With `m < K` an option no longer visits every position, so position bias
+cancels only partly; `python -m brier.bench rotations` measures how much of the gain remains.
+`Decider` always uses all K.
 Property to test: permuting the *input* option list permutes the output identically
 (equivariance), and with all K shifts the result is invariant to the starting order.
 

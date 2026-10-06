@@ -5,6 +5,9 @@ versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- `python -m brier.bench rotations` (ROADMAP M7.2): runs every L0 rotation once, stores the per-rotation log-probabilities and scores L0 with `m` evenly spaced rotations (accuracy, ECE, NLL, flip rate with bootstrap CIs), to measure how many rotations are needed. `brier.bench.rotations.subset_probs` scores any subset offline from the stored arrays.
+
 ## [0.1.1] - 2026-10-06
 
 ### Added

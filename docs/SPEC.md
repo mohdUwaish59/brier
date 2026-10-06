@@ -101,6 +101,11 @@ probabilities that are non-finite, negative or do not sum to 1 (±1e-9).
 `python -m brier.bench run --model <id> --task banking20 --levels raw,L0,L1,L2 --out results/`
 writes a JSON result file (schema in EVALUATION.md).
 
+`python -m brier.bench rotations --model <id> --counts 1,2,4,5,10,20 --out results/` runs
+every L0 rotation once, stores the per-rotation log-probabilities (`*_rotations.npz`, no
+text) and reports accuracy, ECE, NLL and flip rate with bootstrap CIs for `m` evenly spaced
+rotations (METHODS.md, L0; ROADMAP M7.2).
+
 ## 7. Conformance check
 
 `brier check <model-id> [--revision SHA] [--dtype ...] [--device ...] [--batch-size N]
