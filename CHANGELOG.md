@@ -5,6 +5,8 @@ versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-06
+
 ### Added
 - Standard logging (SPEC §8): one stdlib logger per module under `brier` with a `NullHandler`; INFO records for model loading, `fit_prior` / `fit_temperature` / `fit_head` results, saved and loaded calibrations and benchmark progress; DEBUG batch progress. State text is never logged. `python -m brier.bench` now shows its progress.
 - `HFBackend` warns when a model is loaded without a pinned revision.
@@ -53,5 +55,6 @@ First public release.
 - GitHub Actions and pre-commit hooks pinned to full commit SHAs; CodeQL, `pip-audit` and
   Dependabot in CI.
 
-[Unreleased]: https://github.com/mohdUwaish59/brier/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/mohdUwaish59/brier/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/mohdUwaish59/brier/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/mohdUwaish59/brier/releases/tag/v0.1.0
