@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import subprocess
 import sys
 from collections.abc import Sequence
@@ -80,6 +81,8 @@ def _git_commit() -> str | None:
 def main(argv: Sequence[str] | None = None) -> int:
     """Run the CLI; returns the process exit code."""
     args = build_parser().parse_args(argv)
+    # The benchmark CLI is an application: show brier's progress (the library never does).
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s: %(message)s")
     levels = check_levels([lv.strip() for lv in args.levels.split(",") if lv.strip()])
     task = _load_task(args.task, args.seed)
     backend = _make_backend(args)

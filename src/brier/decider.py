@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+import time
 import warnings
 from collections.abc import Sequence
 from pathlib import Path
@@ -11,6 +13,7 @@ import numpy as np
 from brier._math import FloatArray
 from brier.artifacts import (
     DEFAULT_MAX_BYTES,
+    SCHEMA_VERSION,
     Artifact,
     Calibration,
     load_artifact,
@@ -36,6 +39,8 @@ from brier.questions import Choice, Noul, Question, Score, validate_questions
 from brier.readout import raw_logprobs
 
 _LEVELS = ("raw", "L0", "L1", "L2")
+
+_log = logging.getLogger(__name__)  # never log state text (THREAT_MODEL T6)
 
 
 def _check_limit(value: object, what: str) -> int:
@@ -114,6 +119,12 @@ class Decider:
             _backend_dtype(self.backend),
         )
         save_artifact(path, artifact)
+        _log.info(
+            "saved calibration: %s (schema %d, %d questions)",
+            path,
+            SCHEMA_VERSION,
+            len(calibrations),
+        )
 
     @classmethod
     def load(
@@ -175,6 +186,14 @@ class Decider:
                         f"{backend.num_layers}-layer model"
                     )
                 decider._heads[c.question] = c.head
+        _log.info(
+            "loaded calibration: %s (%d questions, model %s @ %s, dtype %s)",
+            path,
+            len(artifact.calibrations),
+            artifact.model_id,
+            artifact.revision,
+            artifact.dtype,
+        )
         return decider
 
     def decide(
@@ -246,11 +265,20 @@ class Decider:
         if not states:
             raise InsufficientDataError("fit_prior needs at least one state")
         validate_questions(questions)
+        start = time.perf_counter()
+        fitted = []
         for q in questions:
             if isinstance(q, Score) and not self.score_prior:
                 continue
             self._priors[q] = fit_prior(l0_logprobs(self.backend, states, q))
             self._temperatures.pop(q, None)  # fitted on top of the old prior: now stale
+            fitted.append(q.name)
+        _log.info(
+            "fit_prior: %s on %d states (%.1fs)",
+            ", ".join(fitted) or "-",
+            len(states),
+            time.perf_counter() - start,
+        )
 
     def fit_temperature(
         self, states: Sequence[str], question: Question, labels: Sequence[object]
@@ -281,8 +309,17 @@ class Decider:
         y = _label_indices(question, labels, len(states))
         if len(states) < MIN_ITEMS:
             raise InsufficientDataError(f"need at least {MIN_ITEMS} labelled states")
+        start = time.perf_counter()
         logp, _ = self._logprobs(states, question, "L0")
-        self._temperatures[question] = fit_temperature(logp, y)
+        t = fit_temperature(logp, y)
+        self._temperatures[question] = t
+        _log.info(
+            "fit_temperature: %r on %d states, T=%.4g (%.1fs)",
+            question.name,
+            len(states),
+            t,
+            time.perf_counter() - start,
+        )
 
     def fit_head(
         self,
@@ -333,6 +370,7 @@ class Decider:
             )
         ):
             raise BrierError(f"layers must be distinct ints in [0, {n_layers})")
+        start = time.perf_counter()
         prompts = [render(s, question) for s in states]
         hidden = self.backend.hidden_states(prompts, cand)
         head = L2Head.from_selection(select_head(hidden, cand, y, len(_answer_keys(question))))
@@ -346,6 +384,18 @@ class Decider:
                 stacklevel=2,
             )
         self._heads[question] = head
+        _log.info(
+            "fit_head: %r on %d states, layer=%d solver=%s alpha=%s T=%.4g "
+            "oof_accuracy=%.3f (%.1fs)",
+            question.name,
+            len(states),
+            head.layer,
+            head.solver,
+            head.alpha,
+            head.temperature,
+            head.oof_accuracy,
+            time.perf_counter() - start,
+        )
 
     def _logprobs(
         self, states: list[str], q: Question, level: Level

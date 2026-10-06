@@ -5,6 +5,14 @@ versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Standard logging (SPEC §8): one stdlib logger per module under `brier` with a `NullHandler`; INFO records for model loading, `fit_prior` / `fit_temperature` / `fit_head` results, saved and loaded calibrations and benchmark progress; DEBUG batch progress. State text is never logged. `python -m brier.bench` now shows its progress.
+- `HFBackend` warns when a model is loaded without a pinned revision.
+
+### Changed
+- `docs/related_work.md`: corrected the AnyJev comparison (AnyJev also selects the L2 layer and head type by out-of-fold NLL).
+- README: logo, `brier check` GIF, six-family results chart, and a tagline that no longer implies a single forward pass.
+
 ## [0.1.0] - 2026-10-03
 
 First public release.
