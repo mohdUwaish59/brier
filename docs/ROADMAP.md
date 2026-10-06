@@ -76,7 +76,7 @@ works; the supported-families table is backed by tests and one cross-family run.
   disconnect; Mistral-7B did not finish).*
 
 ## M7 — After 0.1.0: operability
-- [ ] **M7.1** Standard logging: one stdlib `logging` logger per module under `brier`, with a
+- [x] **M7.1** Standard logging: one stdlib `logging` logger per module under `brier`, with a
   `NullHandler` (brier never configures handlers or prints). INFO: model loaded (id, revision,
   dtype, device, prompt format), `fit_prior` / `fit_temperature` / `fit_head` results (item
   count, T, chosen L2 layer / solver / alpha, OOF accuracy, time), artifact save / load, and

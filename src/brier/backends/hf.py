@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import contextlib
 import importlib
+import logging
+import warnings
 from collections.abc import Sequence
 from typing import Any
 
@@ -55,6 +57,19 @@ def _leading_special_ids(tokenizer: Any) -> list[int]:
         if full[i : i + len(bare)] == bare:
             return full[:i]
     raise TokenizationError("cannot tell which special tokens the tokenizer adds before text")
+
+
+_log = logging.getLogger(__name__)  # never log prompt or state text (THREAT_MODEL T6)
+
+
+def _warn_if_unpinned(model_id: str, revision: str | None) -> None:
+    """Warn when no revision is given: a model name alone does not pin the weights."""
+    if revision is None:
+        warnings.warn(
+            f"{model_id} is loaded without a revision; pass a commit SHA to pin the weights",
+            UserWarning,
+            stacklevel=3,
+        )
 
 
 class _StopForward(Exception):  # noqa: N818 - control flow, not an error
@@ -143,6 +158,7 @@ class HFBackend:
         lead = _leading_special_ids(self.tokenizer) if fmt == "plain" else []
         self._prefix: list[int] = lead + self._ids(before)
         self._suffix: list[int] = self._ids(after)  # ends with the answer prefix
+        _warn_if_unpinned(model_id, revision)
         pad = self.tokenizer.pad_token_id
         pad = pad if pad is not None else self.tokenizer.eos_token_id
         if pad is None:
@@ -150,6 +166,15 @@ class HFBackend:
         self._pad_id: int = pad
         context = getattr(self.model.config, "max_position_embeddings", None) or max_prompt_tokens
         self.max_prompt_tokens: int = min(max_prompt_tokens, context)
+        _log.info(
+            "loaded %s @ %s: dtype=%s device=%s prompt_format=%s layers=%d",
+            model_id,
+            revision,
+            self.dtype,
+            self.device,
+            self.prompt_format,
+            self.num_layers,
+        )
 
     def _ids(self, text: str, *, split_special: bool = False) -> list[int]:
         ids: list[int] = self.tokenizer(
@@ -193,7 +218,14 @@ class HFBackend:
     def _batches(self, prompts: Sequence[str]) -> Any:
         """Yield left-padded ``(input_ids, attention_mask, position_ids)`` tensors."""
         torch = self._torch
+        n_batches = -(-len(prompts) // self.batch_size)
         for start in range(0, len(prompts), self.batch_size):
+            _log.debug(
+                "batch %d/%d (%d prompts)",
+                start // self.batch_size + 1,
+                n_batches,
+                min(self.batch_size, len(prompts) - start),
+            )
             encoded = [self.encode(p) for p in prompts[start : start + self.batch_size]]
             width = max(len(e) for e in encoded)
             ids = torch.tensor([[self._pad_id] * (width - len(e)) + e for e in encoded])

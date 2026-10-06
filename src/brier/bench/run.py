@@ -6,6 +6,7 @@ The npz holds labels, option names and probabilities only (no state text, THREAT
 from __future__ import annotations
 
 import json
+import logging
 import platform
 import re
 import time
@@ -56,6 +57,8 @@ _METRICS: dict[str, Metric] = {
     "aurc": aurc,
     f"coverage_at_risk_{COVERAGE_ALPHA}_in_sample": partial(coverage_at_risk, alpha=COVERAGE_ALPHA),
 }
+
+_logger = logging.getLogger(__name__)
 
 
 def check_levels(levels: Sequence[str]) -> list[Level]:
@@ -157,6 +160,7 @@ def run_task(
     arrays: dict[str, Any] = {"labels": labels, "options": np.array(q.options)}
     stem = f"{task.name}_{_slug(backend.model_id)}_seed{task.seed}"
     for level in lvls:  # raw first, so its results are written before the slow prior fit
+        _logger.info("level %s: started (%d test items)", level, len(states))
         start = time.perf_counter()
         if level == "L0" and pool:  # L0 wall time includes fitting its prior
             decider.fit_prior(pool, [q])
@@ -171,6 +175,7 @@ def run_task(
             p = _predict(decider, states, q, level)
             p_rev = _predict(decider, states, q_rev, level, order=q.options)
         summary["timing"]["wall_seconds"][level] = round(time.perf_counter() - start, 3)
+        _logger.info("level %s: done in %.0fs", level, summary["timing"]["wall_seconds"][level])
         summary["timing"]["forward_passes_per_decision"][level] = (
             1 if level in ("raw", "L2") else len(q.options)
         )

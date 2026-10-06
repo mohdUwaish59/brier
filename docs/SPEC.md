@@ -122,3 +122,23 @@ hidden states). Exit code 0 if no check failed (warnings allowed), 1 if the mode
 loaded or a check failed. The Python API is `brier.check.check_backend(backend)`. Failure
 details quote the exception text, which can contain local paths or URLs: review a report
 before posting it publicly.
+
+## 8. Logging
+
+brier logs through the standard library: one logger per module under `brier` (for example
+`brier.decider`, `brier.backends.hf`), with a `NullHandler` on `brier`. The library never adds
+other handlers, sets levels or prints; the application decides what to show, e.g.
+`logging.basicConfig(level=logging.INFO)` or `logging.getLogger("brier").setLevel(...)`.
+
+- **INFO:** a model loaded (id, revision, dtype, device, prompt format, layer count);
+  `fit_prior`, `fit_temperature` and `fit_head` finished (question name, item count, fitted T,
+  chosen L2 layer / solver / alpha, out-of-fold accuracy, time); a calibration saved or loaded
+  (path, schema version, question count, model); benchmark progress per level.
+- **DEBUG:** batch progress inside the backend.
+- **Never logged:** state text, rendered prompts or labels (THREAT_MODEL T6). Individual
+  decisions are not logged at INFO.
+- **Warnings** (`warnings.warn`) are for things to act on: an L2 temperature at its lower bound,
+  and a model loaded without a pinned revision.
+
+`python -m brier.bench` is an application and shows INFO logs; `brier check` prints its own
+report.
