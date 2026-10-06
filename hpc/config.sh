@@ -18,7 +18,7 @@ export BRIER_BRANCH="${BRIER_BRANCH:-task/M7.2-rotations}"
 # Optional: a PyTorch wheel index matching your cluster's CUDA driver, e.g.
 #   https://download.pytorch.org/whl/cu121
 # Leave empty to use PyPI's default torch build.
-export TORCH_INDEX_URL="${TORCH_INDEX_URL:-}"
+export TORCH_INDEX_URL="${TORCH_INDEX_URL:-https://download.pytorch.org/whl/cu128}"
 
 # Benchmark models: key, Hugging Face id, pinned revision, batch size.
 MODELS=(

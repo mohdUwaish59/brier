@@ -1,16 +1,12 @@
-#!/usr/bin/env bash
-# GPU test ladder (~15 min): brier check on both benchmark models, the real-model integration
-# suite on Qwen3-0.6B, and a 20-item rotations smoke run. Run from the repository root:
-#     sbatch hpc/gpu_tests.sbatch
+#!/bin/bash
 #SBATCH --job-name=brier-gpu-tests
-#SBATCH --gres=gpu:1
-#SBATCH --cpus-per-task=4
+#SBATCH --partition=geospark-gpu
+#SBATCH --gres=gpu:A100:1
+#SBATCH --cpus-per-task=8
 #SBATCH --mem=32G
-#SBATCH --time=01:00:00
-#SBATCH --output=brier-gpu-tests-%j.out
-## Adapt to your cluster, e.g.:
-##SBATCH --partition=gpu
-##SBATCH --account=my_project
+#SBATCH --time=06:00:00
+#SBATCH --output=/ceph/home/moh77867/brier/brier/hpc/logs/gpu_test_%j.out
+#SBATCH --error=/ceph/home/moh77867/brier/brier/hpc/logs/gpu_test_%j.err
 
 set -uo pipefail   # no -e: run every step and report all results at the end
 cd "${SLURM_SUBMIT_DIR:-.}"
@@ -41,4 +37,4 @@ step "rotations smoke ($key, 20 items)" python -m brier.bench rotations --model 
 echo; echo "========== summary =========="
 printf '%s\n' "${status[@]}"
 if printf '%s\n' "${status[@]}" | grep -q '^FAIL'; then exit 1; fi
-echo "All GPU tests passed. Full run: sbatch hpc/run_rotations.sbatch"
+echo "All GPU tests passed. Full run: sbatch hpc/run_rotations.slurm"

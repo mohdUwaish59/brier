@@ -2,16 +2,15 @@
 # Full M7.2 run: every model in config.sh, all 2,603 banking20 test items, rotation counts
 # 1,2,4,5,10,20. About 15 min per model on an A100; 1-2.5 h per model on a T4/V100 (float32).
 # Models that already have results are skipped, so a resubmit continues where it stopped.
-#     sbatch hpc/run_rotations.sbatch
+#     sbatch hpc/run_rotations.slurm
 #SBATCH --job-name=brier-m72
-#SBATCH --gres=gpu:1
+#SBATCH --partition=geospark-gpu
+#SBATCH --gres=gpu:A100:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=48G
 #SBATCH --time=06:00:00
-#SBATCH --output=brier-m72-%j.out
-## Adapt to your cluster, e.g.:
-##SBATCH --partition=gpu
-##SBATCH --account=my_project
+#SBATCH --output=/ceph/home/moh77867/brier/brier/hpc/logs/brier-m72-%j.out
+#SBATCH --error=/ceph/home/moh77867/brier/brier/hpc/logs/brier-m72-%j.err
 
 set -euo pipefail
 cd "${SLURM_SUBMIT_DIR:-.}"

@@ -62,4 +62,4 @@ for entry in "${MODELS[@]}"; do
   echo "   $key: $model @ ${revision:0:7}"
   download "$model" "$revision"
 done
-echo "== setup done. Next: sbatch hpc/gpu_tests.sbatch   then   sbatch hpc/run_rotations.sbatch"
+echo "== setup done. Next: sbatch hpc/gpu_tests.slurm   then   sbatch hpc/run_rotations.slurm"

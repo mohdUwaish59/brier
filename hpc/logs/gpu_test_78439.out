@@ -1,0 +1,50 @@
+name, memory.total [MiB], driver_version
+NVIDIA A100 80GB PCIe, 81920 MiB, 570.211.01
+torch 2.11.0+cu128 | cuda 12.8 | NVIDIA A100 80GB PCIe
+dtype: bfloat16
+
+========== brier check falcon3base ==========
+brier check: tiiuae/Falcon3-1B-Base @ cb37ef3559b157b5c9d9226296ba01a5162da1f7
+
+  PASS  revision           cb37ef3559b157b5c9d9226296ba01a5162da1f7
+  PASS  prompt_format      plain text: the model has no chat template (base model, ADR-0008)
+  PASS  labels.choice      A-Z: single, distinct tokens
+  PASS  labels.noul        Yes, No: single, distinct tokens
+  PASS  labels.score       10 levels as lettered options (digit labels are not single tokens)
+  PASS  batch_consistency  max |p_batched - p_single| = 5.3e-03 (limit 2e-02)
+  PASS  hidden_states      5 candidate layers (8-16 of 18), d = 2048
+  WARN  sanity             accuracy raw 50% / L0 50% on 14 items, order flips raw 0% / L0 17%, 6 ms per prompt; low accuracy: the model may be too weak for useful decisions
+
+Supported levels: raw, L0, L1, L2
+Result: OK
+
+========== brier check qwen3 ==========
+brier check: Qwen/Qwen3-1.7B @ 70d244cc86ccca08cf5af4e1e306ecf908b1ad5e
+
+  PASS  revision           70d244cc86ccca08cf5af4e1e306ecf908b1ad5e
+  PASS  prompt_format      the model's chat template
+  PASS  labels.choice      A-Z: single, distinct tokens
+  PASS  labels.noul        Yes, No: single, distinct tokens
+  PASS  labels.score       10 levels as lettered options (digit labels are not single tokens)
+  PASS  batch_consistency  max |p_batched - p_single| = 4.9e-09 (limit 2e-02)
+  PASS  hidden_states      7 candidate layers (12-24 of 28), d = 2048
+  PASS  sanity             accuracy raw 86% / L0 86% on 14 items, order flips raw 0% / L0 0%, 7 ms per prompt
+
+Supported levels: raw, L0, L1, L2
+Result: OK
+
+========== integration tests (qwen3-0.6B) ==========
+......................                                                   [100%]
+22 passed in 13.98s
+
+========== rotations smoke (falcon3base, 20 items) ==========
+  1 rotations: accuracy=0.350 ece=0.355 flip_rate=0.900
+  4 rotations: accuracy=0.400 ece=0.396 flip_rate=0.450
+ 20 rotations: accuracy=0.600 ece=0.576 flip_rate=0.500
+
+========== summary ==========
+PASS  brier check falcon3base
+PASS  brier check qwen3
+PASS  integration tests (qwen3-0.6B)
+PASS  rotations smoke (falcon3base, 20 items)
+All GPU tests passed. Full run: sbatch hpc/run_rotations.sbatch
