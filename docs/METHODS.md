@@ -31,7 +31,8 @@ Default `S` = all K shifts (every option visits every position once).
 combine is unchanged (geometric mean over `S_m`), and the batch prior is fitted on the pool
 with the same `S_m`. With `m < K` an option no longer visits every position, so position bias
 cancels only partly; `python -m brier.bench rotations` measures how much of the gain remains.
-`Decider` always uses all K.
+`Decider(rotations=m)` uses the same subsets (ADR-0009); the default is all K. Results on
+banking20 are in `docs/results.md` (M7.2).
 Property to test: permuting the *input* option list permutes the output identically
 (equivariance), and with all K shifts the result is invariant to the starting order.
 

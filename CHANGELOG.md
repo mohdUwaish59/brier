@@ -7,6 +7,9 @@ versioning: [Semantic Versioning](https://semver.org/).
 
 ### Added
 - `python -m brier.bench rotations` (ROADMAP M7.2): runs every L0 rotation once, stores the per-rotation log-probabilities and scores L0 with `m` evenly spaced rotations (accuracy, ECE, NLL, flip rate with bootstrap CIs), to measure how many rotations are needed. `brier.bench.rotations.subset_probs` scores any subset offline from the stored arrays.
+- `Decider(rotations=m)` (ADR-0009): `m` evenly spaced L0 rotations per Choice question instead of all K, for L0, L1 and their fits. Calibration artifacts move to schema version 4 and record `rotations`; versions 1-3 still load (all K). `brier.debias.evenly_spaced`.
+- M7.2 results (`docs/results.md`): on Qwen3-1.7B 2 rotations match full-L0 accuracy and calibration; on Falcon3-1B-Base accuracy keeps rising up to all 20.
+- `hpc/`: SLURM scripts to set up, test (unit, `brier check`, GPU integration) and run the M7.2 benchmark on a GPU cluster.
 
 ## [0.1.1] - 2026-10-06
 

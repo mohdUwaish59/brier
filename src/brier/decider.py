@@ -21,7 +21,7 @@ from brier.artifacts import (
 )
 from brier.backends.base import Backend
 from brier.calibrate.temperature import MIN_ITEMS, apply_temperature, fit_temperature
-from brier.debias import apply_prior, fit_prior, l0_logprobs
+from brier.debias import MAX_ROTATIONS, apply_prior, evenly_spaced, fit_prior, l0_logprobs
 from brier.decision import Decision, Level, QuestionType
 from brier.errors import (
     ArtifactError,
@@ -70,6 +70,11 @@ class Decider:
         Fit and apply the L0 prior to Score questions too (off by default).
     max_questions, max_batch : int
         Per-call limits (SPEC §5). The per-prompt token cap is the backend's.
+    rotations : int or None
+        L0 rotations per Choice question (ADR-0009). ``None`` (default): all K, so position
+        bias cancels exactly. An int ``m`` in ``[1, 26]``: ``m`` evenly spaced rotations, ``K/m``
+        times cheaper; questions with ``K <= m`` use all K. Applies to L0, L1 and their fits;
+        saved with the calibration.
     """
 
     def __init__(
@@ -80,9 +85,17 @@ class Decider:
         score_prior: bool = False,
         max_questions: int = 32,
         max_batch: int = 64,
+        rotations: int | None = None,
     ) -> None:
         if isinstance(prior_strength, bool) or not 0.0 <= float(prior_strength) <= 1.0:
             raise BrierError("prior_strength must be in [0, 1]")
+        if rotations is not None and (
+            isinstance(rotations, bool)
+            or not isinstance(rotations, int)
+            or not 1 <= rotations <= MAX_ROTATIONS
+        ):
+            raise BrierError(f"rotations must be None or an int in [1, {MAX_ROTATIONS}]")
+        self._rotations = rotations
         self.backend = backend
         self.prior_strength = float(prior_strength)
         self.score_prior = bool(score_prior)
@@ -92,6 +105,11 @@ class Decider:
         self._priors: dict[Question, FloatArray] = {}
         self._temperatures: dict[Question, float] = {}
         self._heads: dict[Question, L2Head] = {}
+
+    @property
+    def rotations(self) -> int | None:
+        """L0 rotations per Choice question (``None``: all K). Fixed at construction."""
+        return self._rotations
 
     def save(self, path: str | Path) -> None:
         """Save fitted calibration (priors, temperatures, ``prior_strength``), never weights.
@@ -117,6 +135,7 @@ class Decider:
             self.prior_strength,
             calibrations,
             _backend_dtype(self.backend),
+            self.rotations,
         )
         save_artifact(path, artifact)
         _log.info(
@@ -173,6 +192,7 @@ class Decider:
             score_prior=score_prior,
             max_questions=max_questions,
             max_batch=max_batch,
+            rotations=artifact.rotations,
         )
         for c in artifact.calibrations:
             if c.prior is not None:
@@ -270,7 +290,7 @@ class Decider:
         for q in questions:
             if isinstance(q, Score) and not self.score_prior:
                 continue
-            self._priors[q] = fit_prior(l0_logprobs(self.backend, states, q))
+            self._priors[q] = fit_prior(self._l0(states, q))
             self._temperatures.pop(q, None)  # fitted on top of the old prior: now stale
             fitted.append(q.name)
         _log.info(
@@ -414,9 +434,9 @@ class Decider:
         if level == "raw":
             meta["n_forward"] = 1
             return raw_logprobs(self.backend, states, q), meta
-        logp = l0_logprobs(self.backend, states, q)
+        logp = self._l0(states, q)
         prior = self._priors.get(q)
-        meta["n_forward"] = len(q.options) if isinstance(q, Choice) else 1
+        meta["n_forward"] = len(self._shifts(q) or ()) or 1
         meta["prior_applied"] = prior is not None
         if prior is not None:
             logp = apply_prior(logp, prior, lam=self.prior_strength)
@@ -425,6 +445,16 @@ class Decider:
             meta["temperature"] = temperature
             logp = apply_temperature(logp, temperature)
         return logp, meta
+
+    def _shifts(self, q: Question) -> list[int] | None:
+        """L0 rotations for ``q``: ``None`` for non-Choice questions."""
+        if not isinstance(q, Choice):
+            return None
+        k = len(q.options)
+        return evenly_spaced(k, min(self._rotations or k, k))
+
+    def _l0(self, states: list[str], q: Question) -> FloatArray:
+        return l0_logprobs(self.backend, states, q, shifts=self._shifts(q))
 
     def _check_questions(self, questions: Sequence[Question]) -> None:
         if not isinstance(questions, Sequence):

@@ -84,7 +84,7 @@ works; the supported-families table is backed by tests and one cross-family run.
   problems (add one for an unpinned revision). Never log state text (THREAT_MODEL T6): counts,
   lengths and hashes only. "Logging" section in SPEC.
   *Accept:* tests assert the records and that no state text appears in any log record.
-- [ ] **M7.2** How many L0 rotations are needed? L0 averages over all K cyclic rotations (K
+- [x] **M7.2** How many L0 rotations are needed? L0 averages over all K cyclic rotations (K
   forward passes); with all K every option visits every position once, so position bias cancels
   exactly. Measure how much of the gain a subset keeps:
   - benchmark: store each rotation's log-probs per item once (one GPU run), then score evenly

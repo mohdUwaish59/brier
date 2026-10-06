@@ -23,21 +23,14 @@ from brier._math import FloatArray
 from brier.backends.base import Backend
 from brier.bench.run import SCHEMA_VERSION, _metrics, _pkg_version, _slug, _write
 from brier.bench.tasks import Task
-from brier.debias import apply_prior, combine, fit_prior, unrotate
-from brier.errors import BrierError
+from brier.debias import apply_prior, combine, evenly_spaced, fit_prior, unrotate
 from brier.questions import Choice
 from brier.readout import raw_logprobs
 
 _logger = logging.getLogger(__name__)
 
 DEFAULT_COUNTS = (1, 2, 4, 5, 10, 20)
-
-
-def evenly_spaced(k: int, m: int) -> list[int]:
-    """``m`` rotations spread evenly over ``K`` options: ``floor(j K / m)`` for ``j < m``."""
-    if not 1 <= m <= k:
-        raise BrierError(f"rotation count must be in [1, {k}], got {m}")
-    return [(j * k) // m for j in range(m)]
+__all__ = ["evenly_spaced", "per_rotation", "run_rotations", "subset_probs"]
 
 
 def per_rotation(backend: Backend, states: Sequence[str], question: Choice) -> FloatArray:
