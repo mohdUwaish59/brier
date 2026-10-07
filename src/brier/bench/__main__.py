@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from brier.backends.base import Backend
+from brier.bench.rotations import run_rotations
 from brier.bench.run import check_levels, run_task
 from brier.bench.tasks import TASKS, Task, default_cache_dir, load_task
 
@@ -37,6 +38,18 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="hidden-state cache for L2 (default: <BRIER_CACHE_DIR or ~/.cache/brier>/features)",
     )
+    rot = sub.add_parser("rotations", help="measure how many L0 rotations are needed (M7.2)")
+    rot.add_argument("--model", required=True, help="Hugging Face model id")
+    rot.add_argument("--revision", default=None, help="model commit sha (recommended)")
+    rot.add_argument("--task", default="banking20", choices=TASKS)
+    rot.add_argument("--counts", default="1,2,4,5,10,20", help="rotation counts to score")
+    rot.add_argument("--out", required=True, help="output directory")
+    rot.add_argument("--limit", type=int, default=None, help="first N test/pool items only")
+    rot.add_argument("--seed", type=int, default=0, help="split seed")
+    rot.add_argument("--batch-size", type=int, default=8)
+    rot.add_argument("--dtype", default=None, choices=("float32", "bfloat16", "float16"))
+    rot.add_argument("--device", default=None)
+    rot.add_argument("--n-resamples", type=int, default=1000)
     return parser
 
 
@@ -83,6 +96,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     # The benchmark CLI is an application: show brier's progress (the library never does).
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s: %(message)s")
+    if args.command == "rotations":
+        return _rotations(args)
     levels = check_levels([lv.strip() for lv in args.levels.split(",") if lv.strip()])
     task = _load_task(args.task, args.seed)
     backend = _make_backend(args)
@@ -100,6 +115,22 @@ def main(argv: Sequence[str] | None = None) -> int:
     for level, metrics in summary["levels"].items():
         acc, ece_, flip = metrics["accuracy"][0], metrics["ece"][0], metrics["flip_rate"][0]
         print(f"{level:>4}: accuracy={acc:.3f} ece={ece_:.3f} flip_rate={flip:.3f}")
+    return 0
+
+
+def _rotations(args: Any) -> int:
+    summary = run_rotations(
+        _make_backend(args),
+        _load_task(args.task, args.seed),
+        Path(args.out),
+        ms=[int(m) for m in args.counts.split(",") if m.strip()],
+        limit=args.limit,
+        n_resamples=args.n_resamples,
+        git_commit=_git_commit(),
+    )
+    for m, entry in summary["rotation_curve"].items():
+        acc, ece_, flip = (entry["metrics"][k][0] for k in ("accuracy", "ece", "flip_rate"))
+        print(f"{m:>3} rotations: accuracy={acc:.3f} ece={ece_:.3f} flip_rate={flip:.3f}")
     return 0
 
 

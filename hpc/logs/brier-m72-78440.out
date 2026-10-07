@@ -1,0 +1,48 @@
+name, memory.total [MiB], driver_version
+NVIDIA A100 80GB PCIe, 81920 MiB, 570.211.01
+torch 2.11.0+cu128 | cuda 12.8 | NVIDIA A100 80GB PCIe
+dtype: bfloat16
+== falcon3base: tiiuae/Falcon3-1B-Base @ cb37ef3  started 01:10:15
+  1 rotations: accuracy=0.296 ece=0.200 flip_rate=0.862
+  2 rotations: accuracy=0.393 ece=0.304 flip_rate=0.708
+  4 rotations: accuracy=0.475 ece=0.391 flip_rate=0.504
+  5 rotations: accuracy=0.494 ece=0.409 flip_rate=0.543
+ 10 rotations: accuracy=0.576 ece=0.494 flip_rate=0.485
+ 20 rotations: accuracy=0.601 ece=0.519 flip_rate=0.371
+== falcon3base: finished 01:20:03
+== qwen3: Qwen/Qwen3-1.7B @ 70d244c  started 01:20:03
+  1 rotations: accuracy=0.626 ece=0.356 flip_rate=0.357
+  2 rotations: accuracy=0.670 ece=0.299 flip_rate=0.275
+  4 rotations: accuracy=0.676 ece=0.293 flip_rate=0.230
+  5 rotations: accuracy=0.660 ece=0.311 flip_rate=0.219
+ 10 rotations: accuracy=0.667 ece=0.301 flip_rate=0.208
+ 20 rotations: accuracy=0.668 ece=0.299 flip_rate=0.201
+== qwen3: finished 01:34:15
+
+tiiuae/Falcon3-1B-Base @ cb37ef3559b157b5c9d9226296ba01a5162da1f7  dtype=bfloat16  n_test=2603  brier 0.1.1 (5b29715a710eb3adbef5a5dbda3ac25ea80c979a)
+| rotations | accuracy | ece | nll | flip rate |
+|---|---|---|---|---|
+| 1 | 0.296 [0.280, 0.313] | 0.200 [0.184, 0.217] | 2.705 [2.687, 2.724] | 0.862 [0.849, 0.875] |
+| 2 | 0.393 [0.374, 0.411] | 0.304 [0.287, 0.323] | 2.666 [2.651, 2.683] | 0.708 [0.690, 0.725] |
+| 4 | 0.475 [0.455, 0.491] | 0.391 [0.372, 0.407] | 2.667 [2.654, 2.681] | 0.504 [0.484, 0.521] |
+| 5 | 0.494 [0.473, 0.511] | 0.409 [0.389, 0.427] | 2.635 [2.621, 2.648] | 0.543 [0.525, 0.561] |
+| 10 | 0.576 [0.557, 0.595] | 0.494 [0.476, 0.513] | 2.636 [2.623, 2.649] | 0.485 [0.466, 0.503] |
+| 20 | 0.601 [0.583, 0.619] | 0.519 [0.501, 0.537] | 2.632 [2.619, 2.644] | 0.371 [0.353, 0.391] |
+
+Qwen/Qwen3-1.7B @ 70d244cc86ccca08cf5af4e1e306ecf908b1ad5e  dtype=bfloat16  n_test=2603  brier 0.1.1 (5b29715a710eb3adbef5a5dbda3ac25ea80c979a)
+| rotations | accuracy | ece | nll | flip rate |
+|---|---|---|---|---|
+| 1 | 0.626 [0.608, 0.645] | 0.356 [0.337, 0.375] | 6.158 [5.795, 6.500] | 0.357 [0.340, 0.375] |
+| 2 | 0.670 [0.652, 0.687] | 0.299 [0.282, 0.317] | 4.397 [4.124, 4.684] | 0.275 [0.258, 0.292] |
+| 4 | 0.676 [0.659, 0.693] | 0.293 [0.276, 0.309] | 3.978 [3.728, 4.242] | 0.230 [0.213, 0.246] |
+| 5 | 0.660 [0.641, 0.677] | 0.311 [0.294, 0.329] | 4.151 [3.901, 4.409] | 0.219 [0.203, 0.236] |
+| 10 | 0.667 [0.648, 0.684] | 0.301 [0.285, 0.319] | 4.015 [3.768, 4.281] | 0.208 [0.194, 0.224] |
+| 20 | 0.668 [0.650, 0.687] | 0.299 [0.282, 0.317] | 3.845 [3.594, 4.101] | 0.201 [0.186, 0.217] |
+
+tiiuae/Falcon3-1B-Base @ cb37ef3559b157b5c9d9226296ba01a5162da1f7  dtype=bfloat16  n_test=20  brier 0.1.1 (5b29715a710eb3adbef5a5dbda3ac25ea80c979a)
+| rotations | accuracy | ece | nll | flip rate |
+|---|---|---|---|---|
+| 1 | 0.350 [0.150, 0.576] | 0.355 [0.199, 0.549] | 2.860 [2.635, 3.042] | 0.900 [0.800, 1.000] |
+| 4 | 0.400 [0.200, 0.626] | 0.396 [0.236, 0.591] | 2.740 [2.542, 2.903] | 0.450 [0.274, 0.676] |
+| 20 | 0.600 [0.400, 0.826] | 0.576 [0.403, 0.766] | 2.672 [2.516, 2.829] | 0.500 [0.350, 0.700] |
+== done. Send: /ceph/home/moh77867/brier_m72/results_m72 (the *_rotations.json files; the .npz files are optional)

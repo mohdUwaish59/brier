@@ -182,3 +182,50 @@ Flip rate ↓
   (0.162 vs 0.123, 0.117 vs 0.099). L2 reads one prompt in the given order and does not average
   out position bias the way L0 does.
 - **Limits:** one task, one seed, point estimates without intervals for five of the six models.
+
+## banking20 — how many L0 rotations are needed? (M7.2)
+
+Same task, split, seed and unlabelled pool as above; one A100 run per model in bfloat16 with
+`python -m brier.bench rotations` (brier `5b29715`). Every rotation was run once; L0 was then
+scored with `m` evenly spaced rotations, each subset with its own prior fitted on the pool with
+the same rotations (METHODS.md, L0). Source: `hpc/logs/brier-m72-78440.out`. With all 20
+rotations the numbers equal the published L0 results exactly (Qwen3-1.7B above; Falcon3-1B-Base
+in the six-family table), as the unit tests require.
+
+**Qwen3-1.7B** (chat model)
+
+| Rotations (forward passes) | Accuracy ↑ | ECE ↓ | NLL ↓ | Flip rate ↓ |
+|---|---|---|---|---|
+| 1 | 0.626 [0.608, 0.645] | 0.356 [0.337, 0.375] | 6.158 [5.795, 6.500] | 0.357 [0.340, 0.375] |
+| 2 | 0.670 [0.652, 0.687] | 0.299 [0.282, 0.317] | 4.397 [4.124, 4.684] | 0.275 [0.258, 0.292] |
+| 4 | 0.676 [0.659, 0.693] | 0.293 [0.276, 0.309] | 3.978 [3.728, 4.242] | 0.230 [0.213, 0.246] |
+| 5 | 0.660 [0.641, 0.677] | 0.311 [0.294, 0.329] | 4.151 [3.901, 4.409] | 0.219 [0.203, 0.236] |
+| 10 | 0.667 [0.648, 0.684] | 0.301 [0.285, 0.319] | 4.015 [3.768, 4.281] | 0.208 [0.194, 0.224] |
+| 20 | 0.668 [0.650, 0.687] | 0.299 [0.282, 0.317] | 3.845 [3.594, 4.101] | 0.201 [0.186, 0.217] |
+
+**Falcon3-1B-Base** (base model, plain-text prompt)
+
+| Rotations (forward passes) | Accuracy ↑ | ECE ↓ | NLL ↓ | Flip rate ↓ |
+|---|---|---|---|---|
+| 1 | 0.296 [0.280, 0.313] | 0.200 [0.184, 0.217] | 2.705 [2.687, 2.724] | 0.862 [0.849, 0.875] |
+| 2 | 0.393 [0.374, 0.411] | 0.304 [0.287, 0.323] | 2.666 [2.651, 2.683] | 0.708 [0.690, 0.725] |
+| 4 | 0.475 [0.455, 0.491] | 0.391 [0.372, 0.407] | 2.667 [2.654, 2.681] | 0.504 [0.484, 0.521] |
+| 5 | 0.494 [0.473, 0.511] | 0.409 [0.389, 0.427] | 2.635 [2.621, 2.648] | 0.543 [0.525, 0.561] |
+| 10 | 0.576 [0.557, 0.595] | 0.494 [0.476, 0.513] | 2.636 [2.623, 2.649] | 0.485 [0.466, 0.503] |
+| 20 | 0.601 [0.583, 0.619] | 0.519 [0.501, 0.537] | 2.632 [2.619, 2.644] | 0.371 [0.353, 0.391] |
+
+### Reading
+
+- **It depends on how position-biased the model is.** On Qwen3-1.7B, **2 rotations already
+  reach full-L0 accuracy and calibration** (accuracy 0.670 vs 0.668, ECE 0.299 vs 0.299) at a
+  tenth of the cost; more rotations keep lowering order flips (0.275 at 2, 0.230 at 4, 0.201 at
+  20). On Falcon3-1B-Base, whose raw answer flips 99 % of the time, accuracy keeps rising up to
+  all 20 rotations (0.296 → 0.601): a strongly biased model needs the full set.
+- **One rotation plus the zero-label prior is already useful on biased models.** For
+  Falcon3-1B-Base it doubles accuracy over the raw readout (0.155 in the six-family table →
+  0.296) at the cost of a single forward pass. On Qwen3-1.7B it changes little (0.626 either way).
+- **Calibration moves with confidence:** on Falcon3-1B-Base ECE rises with more rotations
+  (0.200 → 0.519) because the model becomes confident while still often wrong; L1 corrects it.
+- **In practice:** `Decider(rotations=m)` (ADR-0009) trades accuracy for speed. Use the default
+  (all K) unless the model's order-flip rate is low (see `brier check`) and speed matters; for
+  capable chat models, 2–4 rotations keep most of the benefit. Two models, one task, one seed.

@@ -1,6 +1,6 @@
 # ADR-0007: Artifact schema version 3 records the model's precision
 
-Status: accepted
+Status: accepted (schema version 4, adding L0 rotations, is in ADR-0009)
 
 ## Context
 Calibration is a property of the exact numbers a model produces. The same weights run in

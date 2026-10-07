@@ -146,7 +146,10 @@ experts and two base models. Details and known quirks:
 ## Limitations
 
 - One benchmark task so far (banking20); more tasks are welcome.
-- `L0` costs K forward passes for a K-option question; there is no prefix caching yet.
+- `L0` costs K forward passes for a K-option question (no prefix caching yet).
+  `Decider(rotations=m)` uses `m` evenly spaced rotations instead: on Qwen3-1.7B, 2 already
+  match full-L0 accuracy, but strongly position-biased models need all K
+  ([results](https://github.com/mohdUwaish59/brier/blob/main/docs/results.md)).
 - Hugging Face `transformers` only (no vLLM backend yet); models need safetensors weights and
   the standard decoder layout.
 - Decisions on untrusted text can be steered by prompt injection (see Security).

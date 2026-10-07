@@ -57,10 +57,15 @@ res["route"].answer, res["route"].probs, res["route"].level  # "billing", {...},
   classes, plain NLL beyond; METHODS.md, L2). Warns if
   the temperature hits its lower bound. `level="L2"` raises `NotFittedError` for any question
   without a head. Heads are saved in artifacts (schema version 2+, ADR-0006).
+- `Decider(backend, prior_strength=1.0, score_prior=False, max_questions=32, max_batch=64,
+  rotations=None)`: `rotations=m` uses `m` evenly spaced L0 rotations per Choice question
+  instead of all K (ADR-0009); `None` keeps all K, so position bias cancels exactly. It
+  applies to L0, L1 and their fits; `Decision.meta["n_forward"]` reports the passes used.
 - `Decider.save(path)` / `Decider.load(path, backend)`: calibration artifacts, never weights.
-  `save` writes every fitted prior and temperature plus `prior_strength` (ADR-0003). `load`
+  `save` writes every fitted prior and temperature plus `prior_strength` and `rotations`
+  (ADR-0003, ADR-0009); `load` restores both. `load`
   validates the artifact as untrusted input and refuses it unless it was fitted on the
-  backend's exact model id, revision and precision (`dtype`, schema version 3, ADR-0007) with
+  backend's exact model id, revision and precision (`dtype`, schema version 3+, ADR-0007; schema version 4 adds `rotations`, ADR-0009) with
   the current prompt templates; decisions after a round trip are identical. Re-fit a
   calibration to use it at another precision. `revision=None` matches by name only and does not pin weights, so
   pass a commit SHA. The SHA-256 checks the arrays file against its JSON; it does not prove
@@ -100,6 +105,11 @@ probabilities that are non-finite, negative or do not sum to 1 (±1e-9).
 
 `python -m brier.bench run --model <id> --task banking20 --levels raw,L0,L1,L2 --out results/`
 writes a JSON result file (schema in EVALUATION.md).
+
+`python -m brier.bench rotations --model <id> --counts 1,2,4,5,10,20 --out results/` runs
+every L0 rotation once, stores the per-rotation log-probabilities (`*_rotations.npz`, no
+text) and reports accuracy, ECE, NLL and flip rate with bootstrap CIs for `m` evenly spaced
+rotations (METHODS.md, L0; ROADMAP M7.2).
 
 ## 7. Conformance check
 

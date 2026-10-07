@@ -65,6 +65,17 @@ counts one option order; flip rate re-runs each level with the options reversed.
 Per-item predictions are saved next to it as `.npz` (labels, option names, `<level>_probs`,
 `<level>_probs_reversed`; no state text) so metrics can be recomputed on CPU.
 
+## Rotation subsets (M7.2)
+
+`python -m brier.bench rotations` uses the same task, split and seed as `run`. It runs all
+K rotations for the test split and the unlabelled pool, in the given and the reversed option
+order, and stores them (`test_rot`, `test_rot_reversed`, `pool_rot`, `pool_rot_reversed`,
+each `(K, N, K)` log-probabilities in option order). For each requested `m` it scores L0
+with `m` evenly spaced rotations and a prior fitted on the pool with the same rotations.
+With `m = K` the numbers equal `run`'s L0 exactly (unit-tested). The result JSON has the
+usual header plus `rotation_curve`: per `m`, the `shifts`, `forward_passes` and `metrics`
+(accuracy, NLL, Brier, ECE, AURC, coverage at risk, flip rate, each with a 95 % CI).
+
 ## Sanity reference
 
 Optionally run AnyJev (pinned version) on the same splits as a reference point.

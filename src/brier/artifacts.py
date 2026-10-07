@@ -29,12 +29,13 @@ import numpy as np
 from brier import prompts
 from brier._math import FloatArray
 from brier._version import __version__
+from brier.debias import MAX_ROTATIONS
 from brier.errors import ArtifactError, BrierError, QuestionError
 from brier.heads.fitted import MAX_HIDDEN, L2Head
 from brier.questions import Choice, Noul, Question, Score
 
-SCHEMA_VERSION = 3  # ADR-0007: adds model.dtype; ADR-0006: L2 heads; 1 and 2 still load
-_READABLE_VERSIONS = (1, 2, 3)
+SCHEMA_VERSION = 4  # ADR-0009: rotations; ADR-0007: model.dtype; ADR-0006: L2 heads
+_READABLE_VERSIONS = (1, 2, 3, 4)
 _DTYPE = re.compile(r"[a-z0-9_.+-]{1,32}")
 MAX_ARTIFACT_QUESTIONS = 1024  # bounds parsing work (each head is four npz members)
 JSON_FILE = "artifact.json"
@@ -146,6 +147,9 @@ class Artifact:
     dtype : str or None
         The backend's precision (ADR-0007); ``None`` if the backend exposes none, or for
         version-1/2 artifacts, which did not record it.
+    rotations : int or None
+        L0 rotations the calibration was fitted with (ADR-0009); ``None`` means all K
+        (and is what version-1 to 3 artifacts were fitted with).
     """
 
     model_id: str
@@ -153,6 +157,7 @@ class Artifact:
     prior_strength: float
     calibrations: tuple[Calibration, ...]
     dtype: str | None = None
+    rotations: int | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.model_id, str) or not self.model_id:
@@ -164,6 +169,8 @@ class Artifact:
         lam = self.prior_strength
         if not _is_number(lam) or not 0 <= lam <= 1:
             raise ArtifactError("prior_strength must be a number in [0, 1]")
+        if not _valid_rotations(self.rotations):
+            raise ArtifactError(f"rotations must be null or an int in [1, {MAX_ROTATIONS}]")
         object.__setattr__(self, "calibrations", tuple(self.calibrations))
         if not all(isinstance(c, Calibration) for c in self.calibrations):
             raise ArtifactError("calibrations must be Calibration instances")
@@ -200,6 +207,7 @@ def save_artifact(path: str | Path, artifact: Artifact) -> None:
         "model": {"id": artifact.model_id, "revision": artifact.revision, "dtype": artifact.dtype},
         "template_hash": prompts.template_hash(),
         "prior_strength": float(artifact.prior_strength),
+        "rotations": artifact.rotations,
         "arrays_sha256": hashlib.sha256(data).hexdigest(),
         "questions": [_question_to_json(c) for c in artifact.calibrations],
     }
@@ -293,7 +301,12 @@ def _load(
     )
     model = doc["model"]
     return Artifact(
-        model["id"], model["revision"], doc["prior_strength"], calibrations, model.get("dtype")
+        model["id"],
+        model["revision"],
+        doc["prior_strength"],
+        calibrations,
+        model.get("dtype"),
+        doc.get("rotations"),
     )
 
 
@@ -324,14 +337,23 @@ def _valid_dtype(x: object) -> bool:
     return isinstance(x, str) and _DTYPE.fullmatch(x) is not None
 
 
+def _valid_rotations(x: object) -> bool:
+    return x is None or (type(x) is int and 1 <= x <= MAX_ROTATIONS)
+
+
 def _check_header(doc: Any, model_id: str, revision: str | None, dtype: str | None) -> int:
-    if not isinstance(doc, dict) or set(doc) != _TOP_KEYS:
-        raise ArtifactError(f"{JSON_FILE} must have exactly the keys {sorted(_TOP_KEYS)}")
+    if not isinstance(doc, dict) or "schema_version" not in doc:
+        raise ArtifactError(f"{JSON_FILE} must be an object with a schema_version")
     version = doc["schema_version"]
     if type(version) is not int or version not in _READABLE_VERSIONS:
         raise ArtifactError(
-            f"unsupported schema_version {version!r} (readable: {_READABLE_VERSIONS})"
+            f"unsupported schema_version {repr(version)[:40]} (readable: {_READABLE_VERSIONS})"
         )
+    top_keys = _TOP_KEYS | ({"rotations"} if version >= 4 else set())
+    if set(doc) != top_keys:
+        raise ArtifactError(f"{JSON_FILE} must have exactly the keys {sorted(top_keys)}")
+    if not _valid_rotations(doc.get("rotations")):
+        raise ArtifactError(f"rotations must be null or an int in [1, {MAX_ROTATIONS}]")
     model = doc["model"]
     model_keys = {"id", "revision", "dtype"} if version >= 3 else {"id", "revision"}
     if (

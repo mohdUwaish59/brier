@@ -34,6 +34,22 @@ def combine(option_logps: Sequence[npt.ArrayLike]) -> FloatArray:
     return norm(np.mean(np.stack([np.asarray(a, dtype=np.float64) for a in option_logps]), 0))
 
 
+MAX_ROTATIONS = 26  # Choice allows at most 26 options
+
+
+def evenly_spaced(k: int, m: int) -> list[int]:
+    """``m`` rotations spread evenly over ``K`` options: ``floor(j K / m)`` for ``j < m``.
+
+    Raises
+    ------
+    BrierError
+        If ``m`` is not in ``[1, K]``.
+    """
+    if not 1 <= m <= k:
+        raise BrierError(f"rotation count must be in [1, {k}], got {m}")
+    return [(j * k) // m for j in range(m)]
+
+
 def l0_logprobs(
     backend: Backend,
     states: Sequence[str],
