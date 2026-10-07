@@ -97,10 +97,10 @@ works; the supported-families table is backed by tests and one cross-family run.
   `docs/related_work.md`): a fixed, evenly spaced subset.
   *Accept:* results table and reading in `docs/results.md`; METHODS documents subset rotations.
 
-## M8 — Shared-prefix KV caching (ADR-0010, proposed)
+## M8 — Shared-prefix KV caching (ADR-0010)
 Goal: reading a state once for all of its rotations and questions, with results identical to
 today's. Benefits long states; banking20 results must not change.
-- [ ] **M8.1** Phase A: `l0_logprobs` sends all `N x K` rotated prompts of a question in one
+- [x] **M8.1** Phase A: `l0_logprobs` sends all `N x K` rotated prompts of a question in one
   `label_logprobs` call. *Accept:* identical outputs (unit tests with `FakeBackend`); banking20
   L0 numbers unchanged.
 - [ ] **M8.2** `HFBackend(prefix_cache=False)`: group prompts in a call by shared token prefix

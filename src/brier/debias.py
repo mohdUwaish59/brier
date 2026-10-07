@@ -11,8 +11,9 @@ import numpy.typing as npt
 from brier._math import FloatArray, norm
 from brier.backends.base import Backend
 from brier.errors import BrierError, QuestionError
+from brier.prompts import render
 from brier.questions import Choice, Question
-from brier.readout import raw_logprobs
+from brier.readout import raw_logprobs, resolve_labels
 
 PRIOR_FLOOR = 1e-6
 
@@ -73,6 +74,12 @@ def l0_logprobs(
     -------
     numpy.ndarray
         float64 log-probabilities, rows sum to 1 in probability space.
+
+    Notes
+    -----
+    All rotations go to the backend in one ``label_logprobs`` call (ADR-0010, phase A): the
+    label tokens are positional, so they are the same for every rotation, and a backend that
+    shares prompt prefixes within a call can read each state once.
     """
     if not isinstance(question, Choice):
         if shifts is not None:
@@ -82,7 +89,32 @@ def l0_logprobs(
     s_list = list(range(k)) if shifts is None else list(shifts)
     if not s_list or len(set(s_list)) != len(s_list) or not all(0 <= s < k for s in s_list):
         raise QuestionError(f"shifts must be distinct values in [0, {k})")
-    return combine([unrotate(raw_logprobs(backend, states, question, s), s) for s in s_list])
+    _, token_ids = resolve_labels(backend, question)
+    position_logp = backend.label_logprobs(rotated_prompts(states, question, s_list), token_ids)
+    return combine_rotated(position_logp, s_list, len(states))
+
+
+def rotated_prompts(states: Sequence[str], question: Choice, shifts: Sequence[int]) -> list[str]:
+    """Prompts for every state under every rotation, shift-major.
+
+    All states for ``shifts[0]`` come first, then all states for ``shifts[1]``, and so on.
+    """
+    return [render(state, question, shift=s) for s in shifts for state in states]
+
+
+def combine_rotated(
+    position_logp: npt.ArrayLike, shifts: Sequence[int], n_states: int
+) -> FloatArray:
+    """Combine shift-major display-position log-probs into option order.
+
+    ``position_logp`` has ``len(shifts) * n_states`` rows (see :func:`rotated_prompts`); the
+    result is ``(n_states, K)``: each block normalised, unrotated, then geometric mean.
+    """
+    lp = np.asarray(position_logp, dtype=np.float64)
+    if lp.ndim != 2 or lp.shape[0] != len(shifts) * n_states:
+        raise BrierError(f"backend returned {lp.shape}, expected {len(shifts) * n_states} rows")
+    blocks = lp.reshape(len(shifts), n_states, lp.shape[1])
+    return combine([unrotate(norm(block), s) for block, s in zip(blocks, shifts, strict=True)])
 
 
 def fit_prior(logp: npt.ArrayLike) -> FloatArray:

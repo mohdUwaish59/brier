@@ -5,6 +5,9 @@ versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- L0 sends all rotations of a question to the backend in one `label_logprobs` call (ADR-0010, phase A; `brier.debias.rotated_prompts` / `combine_rotated`). Results are identical on the fake backend and on Qwen3-0.6B in float32 (max difference 0.0); in bfloat16 on a GPU, rotations now share batches, so expect at most floating-point batching differences. Small batches run faster because batches are fuller, and it prepares shared-prefix caching (M8.2).
+
 ## [0.2.0] - 2026-10-07
 
 ### Added

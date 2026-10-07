@@ -1,6 +1,6 @@
 # ADR-0010: Shared-prefix KV caching for rotations and multiple questions
 
-Status: proposed
+Status: accepted
 
 ## Context
 Every brier prompt starts with the same text for a given state: the chat template (or the
