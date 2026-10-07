@@ -12,8 +12,8 @@ export WORKDIR="${WORKDIR:-$HOME/brier_m72}"
 # Python 3.10-3.13. On many clusters: `module load python/3.11` first, or set the full path.
 export PYTHON="${PYTHON:-python3}"
 
-# Branch with the `rotations` command (M7.2). setup.sh checks it out in REPO_DIR.
-export BRIER_BRANCH="${BRIER_BRANCH:-task/M7.2-rotations}"
+# Branch (or tag) to test. setup.sh checks it out in REPO_DIR.
+export BRIER_BRANCH="${BRIER_BRANCH:-main}"
 
 # Optional: a PyTorch wheel index matching your cluster's CUDA driver, e.g.
 #   https://download.pytorch.org/whl/cu121
