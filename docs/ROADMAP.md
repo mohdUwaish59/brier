@@ -97,9 +97,29 @@ works; the supported-families table is backed by tests and one cross-family run.
   `docs/related_work.md`): a fixed, evenly spaced subset.
   *Accept:* results table and reading in `docs/results.md`; METHODS documents subset rotations.
 
+## M8 — Shared-prefix KV caching (ADR-0010, proposed)
+Goal: reading a state once for all of its rotations and questions, with results identical to
+today's. Benefits long states; banking20 results must not change.
+- [ ] **M8.1** Phase A: `l0_logprobs` sends all `N x K` rotated prompts of a question in one
+  `label_logprobs` call. *Accept:* identical outputs (unit tests with `FakeBackend`); banking20
+  L0 numbers unchanged.
+- [ ] **M8.2** `HFBackend(prefix_cache=False)`: group prompts in a call by shared token prefix
+  (pure, unit-tested function), run each prefix once, reuse its cache for right-padded tails;
+  fall back for ineligible caches (Gemma 3 sliding window, LFM2) and short prefixes.
+  *Accept:* cached vs uncached within 1e-4 (float32) on every integration-suite family that is
+  eligible, fallback verified on the others.
+- [ ] **M8.3** Phase B: optional `label_logprobs_multi` (one label set per prompt);
+  `Decider.decide_batch` sends all questions of a batch together when the backend has it and
+  falls back otherwise. *Accept:* identical decisions with and without it (`FakeBackend`
+  implements both paths).
+- [ ] **M8.4** `brier check` reports `prefix_cache`: exact (difference, speed-up), fallback or
+  off.
+- [ ] **M8.5** A long-state benchmark task (public, licensed, pinned like BANKING77): speed-up and
+  exactness of the cache on two or more families; if both hold, make `prefix_cache="auto"` the
+  default (ADR-0010 amendment).
+
 ## Later (each needs an ADR first)
 - Certified abstention: split-conformal sets and Learn-then-Test thresholds.
-- One state, many questions: shared-prefix KV reuse.
 - Ordinal (cumulative-logit) heads for Score.
 - More than 26 options (shortlist + rotated comparison).
 - Generic layer discovery for models whose blocks are not at `get_decoder().layers`
