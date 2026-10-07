@@ -1,6 +1,6 @@
 # Testing brier and running M7.2 on a SLURM cluster
 
-Uses your brier repository checkout on the cluster (branch `task/M7.2-rotations`). Four rungs, cheapest first:
+Uses your brier repository checkout on the cluster (branch `main` by default; see `config.sh`). Four rungs, cheapest first:
 
 | Step | Where | Time | What it proves |
 |---|---|---|---|
@@ -11,10 +11,10 @@ Uses your brier repository checkout on the cluster (branch `task/M7.2-rotations`
 
 ## Before you start
 
-1. **Get this folder:** it is on the `task/M7.2-rotations` branch.
+1. **Get this folder:** it is on `main`.
    ```bash
    cd ~/brier                                # your checkout
-   git fetch origin && git checkout task/M7.2-rotations && git pull
+   git fetch origin && git checkout main && git pull
    ```
 2. **Edit `hpc/config.sh`** if needed: `WORKDIR` (~10 GB free), `PYTHON` (3.10–3.13), and
    `TORCH_INDEX_URL` if PyTorch can't see the GPU with the default build.
@@ -31,7 +31,7 @@ tail -f brier-gpu-tests-*.out          # ends with a PASS/FAIL summary
 sbatch hpc/run_rotations.slurm        # GPU: the full M7.2 run
 ```
 
-`setup.sh` checks out `task/M7.2-rotations` and refuses to run if tracked files have
+`setup.sh` checks out `BRIER_BRANCH` (default `main`) and refuses to run if tracked files have
 uncommitted changes. Jobs run offline (`HF_HUB_OFFLINE=1`); everything is downloaded by
 `setup.sh`. Precision is picked automatically: bfloat16 where supported, else float32.
 
